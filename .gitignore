@@ -170,3 +170,6 @@ report.html
 
 #linting output
 lint.txt
+
+# local data
+/data/
