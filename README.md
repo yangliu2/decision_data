@@ -12,29 +12,33 @@
 
 # Folder Structure
 ```
-|- data               # Storing data for entire app
-|- api                # all api folder
-    |- backend        # backend api folder
-        |- api.py     # backend fast api file
-|- backend            # backend code 
-    |- config         # config folder for pydantic structure
-        |- config.py  # pydantic settings for backend
-    |- data           # scripts to get decision stories data
-        |- reddit.py  # web scrapping to get data from reddit
-|- data_structure     # pydantic models for data structures
-    |- models.py      # pydantic models
-|- ui                 # frontend code folder
-    |- 
-|- tests              # tests for repo
-    |- test_sample.py # sample test file
-|- .env               # enviornment variables
-|- flake8             # flake8 settings
-|- .gitignore         # gitignore file
-|- LICENSE            # license file
-|- mypy.ini           # mypy settings
-|- poetry.lock        # poetry lock file
-|- pyproject.toml     # poetry setting file
-|- pytest.ini         # pytest setting file
-|- README.md          # readme file for entire repo
-|- tox.ini            # tox setting file
+├── data               # Storing data for entire app
+├── api                # all api folder
+    ├── backend        # backend api folder
+        ├── api.py     # backend fast api file
+├── backend            # backend code 
+    ├── config         # config folder for pydantic structure
+        ├── config.py  # pydantic settings for backend
+    ├── data           # scripts to get decision stories data
+        ├── reddit.py  # web scrapping to get data from reddit
+├── data_structure     # pydantic models for data structures
+    ├── models.py      # pydantic models
+├── ui                 # frontend code folder
+    ├── 
+├── tests              # tests for repo
+    ├── test_sample.py # sample test file
+├── .env               # enviornment variables
+├── flake8             # flake8 settings
+├── .gitignore         # gitignore file
+├── LICENSE            # license file
+├── mypy.ini           # mypy settings
+├── poetry.lock        # poetry lock file
+├── pyproject.toml     # poetry setting file
+├── pytest.ini         # pytest setting file
+├── README.md          # readme file for entire repo
+├── tox.ini            # tox setting file
 ```
+
+# API
+* api.backend.api  
+`http://127.0.0.1:8000/api/stories?source=reddit&subreddit=decisions&limit=5`
