@@ -1,7 +1,6 @@
 """ Using web scrapper to get decision stories from Reddit"""
 
 from abc import ABC, abstractmethod
-from typing import List
 import praw
 from decision_data.backend.config.config import backend_config
 from decision_data.data_structure.models import Story
@@ -33,16 +32,14 @@ class RedditScraper(DecisionScraper):
             user_agent=backend_config.REDDIT_USER_AGENT,
         )
 
-    def fetch_stories(
-        self,
-        subreddit_name="decisions",
-        limit=10,
-        after=None,
-    ) -> List[Story]:
+    def fetch_stories(self, subreddit_name="decision", limit=None):
+        subreddit = self.reddit.subreddit(subreddit_name)
+        stories = []
         try:
-            subreddit = self.reddit.subreddit(subreddit_name)
-            stories = []
-            submissions = subreddit.top(limit=limit, params={"after": after})
+            # Use subreddit.new() to get the newest posts
+            submissions = subreddit.new(
+                limit=limit
+            )  # limit=None fetches as many as possible (up to 1,000)
             for submission in submissions:
                 if not submission.stickied:
                     story = Story(
