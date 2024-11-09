@@ -8,12 +8,24 @@ from decision_data.data_structure.models import Story
 
 
 class DecisionScraper(ABC):
+    """Abstraction class for web scrapper that can be used for typing
+
+    :param ABC: base class type
+    :type ABC: abstract class
+    """
+
     @abstractmethod
     def fetch_stories(self):
         pass
 
 
 class RedditScraper(DecisionScraper):
+    """Reddit scrapper to get data from a sub reddit
+
+    :param DecisionScraper: base abstraction class
+    :type DecisionScraper: base class for typing
+    """
+
     def __init__(self):
         self.reddit = praw.Reddit(
             client_id=backend_config.REDDIT_CLIENT_ID,
