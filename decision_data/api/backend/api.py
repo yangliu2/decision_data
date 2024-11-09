@@ -24,6 +24,22 @@ async def get_stories(
     after: Optional[str] = None,
     subreddit: Optional[str] = None,
 ):
+    """API route for getting reddit data back in a json format
+
+    :param source: Query object determine the data source, defaults to
+    Query("reddit", enum=["reddit"])
+    :type source: str, optional
+    :param limit: Query object that indicate parameters, defaults to
+    Query(10, ge=1, le=100)
+    :type limit: int, optional
+    :param after: how many post to get, defaults to None
+    :type after: Optional[str], optional
+    :param subreddit: which subreddit board to go, defaults to None
+    :type subreddit: Optional[str], optional
+    :raises HTTPException: when failed raise http exception
+    :return: _description_
+    :rtype: List[Story], json format
+    """
     if source == "reddit":
         if not subreddit:
             subreddit = "decisions"
