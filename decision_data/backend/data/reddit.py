@@ -18,13 +18,7 @@ class DecisionScraper(ABC):
         pass
 
 
-class RedditScraper(DecisionScraper):
-    """Reddit scrapper to get data from a sub reddit
-
-    :param DecisionScraper: base abstraction class
-    :type DecisionScraper: base class for typing
-    """
-
+class RedditScraper:
     def __init__(self):
         self.reddit = praw.Reddit(
             client_id=backend_config.REDDIT_CLIENT_ID,
@@ -32,22 +26,23 @@ class RedditScraper(DecisionScraper):
             user_agent=backend_config.REDDIT_USER_AGENT,
         )
 
-    def fetch_stories(self, subreddit_name="decision", limit=None):
+    def fetch_stories(self, subreddit_name="DecisionMaking", limit=10):
         subreddit = self.reddit.subreddit(subreddit_name)
         stories = []
         try:
-            # Use subreddit.new() to get the newest posts
-            submissions = subreddit.new(
-                limit=limit
-            )  # limit=None fetches as many as possible (up to 1,000)
+            submissions = subreddit.new(limit=limit)
             for submission in submissions:
+                author = submission.author.name if submission.author else None
                 if not submission.stickied:
                     story = Story(
+                        id=submission.id,
                         title=submission.title,
                         content=submission.selftext,
                         url=submission.url,
                         score=submission.score,
                         comments=submission.num_comments,
+                        created_utc=submission.created_utc,
+                        author=author,
                     )
                     stories.append(story)
             return stories

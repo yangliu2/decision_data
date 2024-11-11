@@ -173,3 +173,5 @@ lint.txt
 
 # local data
 /data/
+# mongo db
+compass-connections.json
