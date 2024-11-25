@@ -24,6 +24,9 @@
         ├── config.py  # pydantic settings for backend
     ├── data           # scripts to get decision stories data
         ├── reddit.py  # web scrapping to get data from reddit
+    ├── transcribe     # scripts to transcribe data on S3
+        ├── aws_s3.py  # functions to download/upload files on S3
+        ├── whipser.py # using openai whipser service to transcribe audio
 ├── data_structure     # pydantic models for data structures
     ├── models.py      # pydantic models
 ├── ui                 # frontend code folder
