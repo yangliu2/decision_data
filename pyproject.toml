@@ -5,6 +5,11 @@ description = ""
 authors = ["Yang Liu <yangliu3456@gmail.com>"]
 readme = "README.md"
 
+# Specify the packages to include
+packages = [
+    { include = "decision_data" }
+]
+
 [tool.poetry.dependencies]
 python = "^3.13"
 pydantic = "^2.9.2"
@@ -15,6 +20,7 @@ praw = "^7.8.1"
 pymongo = "^4.10.1"
 loguru = "^0.7.2"
 openai = "^1.55.0"
+boto3-stubs = "^1.35.68"
 
 [tool.poetry.group.dev.dependencies]  
 pytest = "^8.3.3"
