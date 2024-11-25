@@ -6,7 +6,7 @@ from decision_data.backend.data.mongodb_client import MongoDBClient
 from loguru import logger
 
 
-def main(num_posts=10):
+def save_reddit_story_to_mongo(num_posts: int = 10):
     # Initialize Reddit scraper
     scraper = RedditScraper()
     stories = scraper.fetch_stories(limit=num_posts)
@@ -26,6 +26,10 @@ def main(num_posts=10):
     mongo_client.close()
 
 
+def main():
+    save_reddit_story_to_mongo(num_posts)
+
+
 if __name__ == "__main__":
     # Parameterize the number of posts
     if len(sys.argv) > 1:
@@ -37,4 +41,4 @@ if __name__ == "__main__":
     else:
         num_posts = 10  # Default value
 
-    main(num_posts)
+    main()

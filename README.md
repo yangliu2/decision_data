@@ -45,3 +45,5 @@
 # API
 * api.backend.api  
 `http://127.0.0.1:8000/api/stories?source=reddit&subreddit=decisions&limit=5`
+* get stories from reddit and save to mongo db
+`curl -X POST "http://127.0.0.1:8000/api/save_stories?num_posts=1000"`
