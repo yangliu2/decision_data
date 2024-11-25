@@ -3,8 +3,24 @@
 import boto3
 from pathlib import Path
 from loguru import logger
+from mypy_boto3_s3 import S3Client
 from decision_data.backend.config.config import backend_config
 from botocore.exceptions import BotoCoreError, ClientError
+
+
+def get_s3_client() -> S3Client:
+    """Get a s3 client
+
+    :return: s3 client seesion
+    :rtype: Session
+    """
+    s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=backend_config.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=backend_config.AWS_SECRET_ACCESS_KEY,
+        region_name=backend_config.REGION_NAME,
+    )
+    return s3_client
 
 
 def download_from_s3(
@@ -35,12 +51,7 @@ def download_from_s3(
     local_file_path = download_path / file_name
 
     # Initialize S3 client
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=backend_config.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=backend_config.AWS_SECRET_ACCESS_KEY,
-        region_name=backend_config.REGION_NAME,
-    )
+    s3_client = get_s3_client()
 
     try:
         logger.info(f"Starting download of {s3_key} from bucket {bucket_name}")
@@ -78,12 +89,7 @@ def upload_to_s3(
         BotoCoreError: For boto3 related errors during upload.
     """
     # Initialize S3 client
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=backend_config.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=backend_config.AWS_SECRET_ACCESS_KEY,
-        region_name=backend_config.REGION_NAME,
-    )
+    s3_client = get_s3_client()
 
     try:
         logger.info(f"Uploading transcript to {bucket_name}/{s3_key}")
@@ -99,12 +105,7 @@ def remove_s3_file(
     s3_key: str,
 ):
     # Initialize S3 client
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=backend_config.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=backend_config.AWS_SECRET_ACCESS_KEY,
-        region_name=backend_config.REGION_NAME,
-    )
+    s3_client = get_s3_client()
 
     try:
         s3_client.delete_object(Bucket=bucket_name, Key=s3_key)
