@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from decision_data.backend.data.reddit import RedditScraper
 from decision_data.data_structure.models import Story
-from decision_data.backend.data.save_reddit_posts import main
+from decision_data.backend.data.save_reddit_posts import save_reddit_story_to_mongo
 
 app = FastAPI(title="Decision Stories API")
 app.add_middleware(
@@ -41,9 +41,5 @@ async def save_stories_endpoint(
     background_tasks: BackgroundTasks,
     num_posts: int = Query(10, ge=1, le=1000),
 ):
-    background_tasks.add_task(save_stories_task, num_posts)
+    background_tasks.add_task(save_reddit_story_to_mongo, num_posts)
     return {"message": "Saving stories in the background."}
-
-
-def save_stories_task(num_posts):
-    main(num_posts)
