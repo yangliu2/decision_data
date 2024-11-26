@@ -98,6 +98,7 @@ def transcribe_and_upload_one(
     audio_s3_folder: str,
     audio_s3_key: str,
     download_dir: str = "data/processing_audio",
+    min_duration: float = 3.0,
 ) -> None:
     """
     Main function to orchestrate downloading from S3, transcribing, uploading
@@ -110,6 +111,8 @@ def transcribe_and_upload_one(
         transcripts_folder (str): Folder within the destination bucket to store
         transcripts.
         download_dir (str): Local directory path to download audio files.
+        min_duration (int): Minimum audio length for transcription. Default to
+        3.0 seconds.
 
     Raises:
         Exception: If any step in the process fails.
@@ -131,11 +134,11 @@ def transcribe_and_upload_one(
         duration = get_audio_duration(audio_path=local_audio_path)
         logger.debug(f"Audio duration: {duration} seconds")
 
-        # openai will not take audio shorter than 0.1 seconds
-        if duration < 0.1:
+        # openai will not take audio shorter than min duration
+        if duration < min_duration:
             logger.info(
-                f"Audio duration is less than 0.1 seconds. Deleting file from "
-                f"S3: {audio_s3_key}"
+                f"Audio duration is less than {min_duration} seconds. Deleting"
+                f"file from S3: {audio_s3_key}"
             )
             remove_s3_file(
                 bucket_name=bucket_name,
@@ -212,7 +215,6 @@ def transcribe_and_upload():
             audio_s3_folder=backend_config.AWS_S3_AUDIO_FOLDER,
             audio_s3_key=audio_file,
         )
-        break
 
 
 def main():
