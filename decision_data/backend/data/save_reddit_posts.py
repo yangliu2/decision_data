@@ -8,7 +8,11 @@ directly to perform the save operation with a specified number of posts.
 import sys
 from decision_data.backend.data.reddit import RedditScraper
 from decision_data.backend.data.mongodb_client import MongoDBClient
+from decision_data.backend.config.config import backend_config
 from loguru import logger
+from decision_data.backend.utils.logger import setup_logger
+
+setup_logger()
 
 
 def save_reddit_story_to_mongo(num_posts: int = 10) -> None:
@@ -50,7 +54,14 @@ def save_reddit_story_to_mongo(num_posts: int = 10) -> None:
         return
 
     # Initialize MongoDB client
-    mongo_client = MongoDBClient()
+    uri: str = backend_config.MONGODB_URI
+    db: str = backend_config.MONGODB_DB_NAME
+    collection: str = backend_config.MONGODB_REDDIT_COLLECTION_NAME
+    mongo_client = MongoDBClient(
+        uri=uri,
+        db=db,
+        collection=collection,
+    )
 
     # Insert stories into MongoDB
     mongo_client.insert_stories(stories_dicts)

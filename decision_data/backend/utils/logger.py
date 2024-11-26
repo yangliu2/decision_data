@@ -25,8 +25,7 @@ def setup_logger(log_dir: str = "logs"):
 
     # Define format strings
     file_format = (
-        "{time:YYYY-MM-DD HH:mm:ss} | {level} | "
-        "{file}:{function}:{line} - {message}"
+        "{time:YYYY-MM-DD HH:mm:ss} | {level} | " "{file}:{function}:{line} - {message}"
     )
     console_format = (
         "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
