@@ -24,11 +24,14 @@
         ├── config.py  # pydantic settings for backend
     ├── data           # scripts to get decision stories data
         ├── reddit.py  # web scrapping to get data from reddit
+        ├── mongodb_client.py       # save data to mongodb
+        ├── save_reddit_posts.py    # save reddit data to mongodb
     ├── transcribe     # scripts to transcribe data on S3
         ├── aws_s3.py  # functions to download/upload files on S3
         ├── whipser.py # using openai whipser service to transcribe audio
     ├── utils          # utility scripts for all backend code
         ├── logger.py  # logging setup
+        ├── dynamo.py  # using AWS dynamo db as key value pair storage
 ├── data_structure     # pydantic models for data structures
     ├── models.py      # pydantic models
 ├── ui                 # frontend code folder
