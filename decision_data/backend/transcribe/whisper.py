@@ -3,15 +3,17 @@
 from openai import OpenAI
 from pathlib import Path
 from loguru import logger
-import sys
 import wave
+from datetime import datetime, timezone
 from decision_data.backend.config.config import backend_config
+from decision_data.backend.data.mongodb_client import MongoDBClient
 from decision_data.backend.transcribe.aws_s3 import (
     download_from_s3,
     upload_to_s3,
     remove_s3_file,
     list_s3_files,
 )
+from decision_data.data_structure.models import Transcript
 from decision_data.backend.utils.logger import setup_logger
 
 setup_logger()
@@ -47,6 +49,50 @@ def transcribe_from_local(audio_path: Path) -> str:
     return transcription.text
 
 
+def get_utc_datetime() -> str:
+    """Get utc time
+
+    :return: utc time in string format
+    :rtype: str
+    """
+    # Get the current UTC datetime
+    now_utc = datetime.now(timezone.utc)
+
+    # Format UTC datetime
+    utc_datetime = now_utc.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    return utc_datetime
+
+
+def save_to_mongodb(
+    transcript: str,
+    duration: float,
+    original_audio_path: str,
+):
+    """Save transcripts to mongodb
+
+    :param transcript: transcript to be saved
+    :type transcript: str
+    :param duration: duration of the original audio
+    :type duration: float
+    """
+    record = Transcript(
+        transcript=transcript,
+        length_in_seconds=duration,
+        original_audio_path=original_audio_path,
+        created_utc=get_utc_datetime(),
+    )
+
+    mongo_client = MongoDBClient(
+        uri=backend_config.MONGODB_URI,
+        db=backend_config.MONGODB_DB_NAME,
+        collection=backend_config.MONGODB_TRANSCRIPTS_COLLECTION_NAME,
+    )
+
+    mongo_client.insert_transcripts(transcripts_data=[record.model_dump()])
+    logger.info("Inserted one transcript.")
+
+
 def transcribe_and_upload_one(
     bucket_name: str,
     audio_s3_folder: str,
@@ -78,6 +124,7 @@ def transcribe_and_upload_one(
             s3_key=audio_s3_key,
             download_path=Path(download_dir),
         )
+        original_audio_path = f"s3://{bucket_name}/{audio_s3_key}"
         logger.debug(f"File downloaded to {local_audio_path}")
 
         # Step 2: Check audio duration
@@ -94,7 +141,7 @@ def transcribe_and_upload_one(
                 bucket_name=bucket_name,
                 s3_key=audio_s3_key,
             )
-            logger.info(f"Deleted S3 file: s3://{bucket_name}/{audio_s3_key}")
+            logger.info(f"Deleted S3 file: {original_audio_path}")
             return  # Exit the function early
 
         # Step 3: Transcribe the downloaded audio file
@@ -105,6 +152,13 @@ def transcribe_and_upload_one(
         # Step 4: Define the S3 key for the transcript
         transcript_file_name = f"{local_audio_path.stem}_transcript.txt"
         transcript_s3_key = f"{transcripts_s3_folder}/{transcript_file_name}"
+
+        # Save to mongodb
+        save_to_mongodb(
+            transcript=transcript,
+            duration=duration,
+            original_audio_path=original_audio_path,
+        )
 
         # Step 5: Upload the transcript to the destination S3 bucket
         upload_to_s3(
@@ -124,7 +178,7 @@ def transcribe_and_upload_one(
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")
-        sys.exit(1)
+        raise
     finally:
         # Step 7: Clean up by removing the local audio file
         if "local_audio_path" in locals() and local_audio_path.exists():
