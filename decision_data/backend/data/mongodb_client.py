@@ -1,7 +1,6 @@
 # decision_data/backend/data/mongodb_client.py
 
 from pymongo import MongoClient
-from decision_data.backend.config.config import backend_config
 from loguru import logger
 import pymongo
 from typing import List, Dict, Any
@@ -16,7 +15,12 @@ class MongoDBClient:
     of the database connection.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        uri: str,
+        db: str,
+        collection: str,
+    ):
         """
         Initialize the MongoDBClient instance by establishing a connection.
 
@@ -30,9 +34,9 @@ class MongoDBClient:
             collection (Collection): The MongoDB collection for storing
             stories.
         """
-        self.client: MongoClient = MongoClient(backend_config.MONGODB_URI)
-        self.db = self.client[backend_config.MONGODB_DB_NAME]
-        self.collection = self.db[backend_config.MONGODB_COLLECTION_NAME]
+        self.client: MongoClient = MongoClient(uri)
+        self.db = self.client[db]
+        self.collection = self.db[collection]
 
     def insert_stories(self, stories: List[Dict[str, Any]]) -> None:
         """

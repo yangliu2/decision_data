@@ -13,7 +13,7 @@ class BackendConfig(BaseSettings):
     # MongoDB settings
     MONGODB_URI: str = ""
     MONGODB_DB_NAME: str = ""
-    MONGODB_COLLECTION_NAME: str = ""
+    MONGODB_REDDIT_COLLECTION_NAME: str = ""
 
     # openai
     OPENAI_API_KEY: str = ""
