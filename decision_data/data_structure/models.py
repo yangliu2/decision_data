@@ -11,3 +11,10 @@ class Story(BaseModel):
     comments: int
     created_utc: float
     author: Optional[str]
+
+
+class Transcript(BaseModel):
+    transcript: str
+    length_in_seconds: float
+    original_audio_path: str
+    created_utc: str

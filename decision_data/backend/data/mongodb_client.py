@@ -87,6 +87,19 @@ class MongoDBClient:
         else:
             logger.info("No stories to insert.")
 
+    def insert_transcripts(self, transcripts_data: List[Dict[str, Any]]) -> None:
+
+        if transcripts_data:
+            try:
+                self.collection.insert_many(transcripts_data, ordered=False)
+                logger.info(
+                    f"Inserted {len(transcripts_data)} transcripts into MongoDB."
+                )
+            except Exception as e:
+                logger.error(f"Error inserting stories into MongoDB: {e}")
+        else:
+            logger.info("No stories to insert.")
+
     def close(self) -> None:
         """
         Close the MongoDB client connection.
