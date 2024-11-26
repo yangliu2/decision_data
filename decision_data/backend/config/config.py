@@ -23,6 +23,11 @@ class BackendConfig(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ""
     REGION_NAME: str = ""
 
+    # AWS Dynamo DB keys
+    AWS_S3_BUCKET_NAME: str = "panzoto"
+    AWS_S3_AUDIO_FOLDER: str = "audio_upload"
+    AWS_S3_TRANSCRIPT_FOLDER: str = "transcripts"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

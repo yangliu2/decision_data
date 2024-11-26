@@ -4,13 +4,14 @@ from openai import OpenAI
 from pathlib import Path
 from loguru import logger
 import sys
+import wave
 from decision_data.backend.config.config import backend_config
 from decision_data.backend.transcribe.aws_s3 import (
     download_from_s3,
     upload_to_s3,
     remove_s3_file,
+    list_s3_files,
 )
-import wave
 from decision_data.backend.utils.logger import setup_logger
 
 setup_logger()
@@ -46,7 +47,12 @@ def transcribe_from_local(audio_path: Path) -> str:
     return transcription.text
 
 
-def transcribe_and_upload() -> None:
+def transcribe_and_upload_one(
+    bucket_name: str,
+    audio_s3_folder: str,
+    audio_s3_key: str,
+    download_dir: str = "data/processing_audio",
+) -> None:
     """
     Main function to orchestrate downloading from S3, transcribing, uploading
     transcripts, and cleaning up.
@@ -62,15 +68,11 @@ def transcribe_and_upload() -> None:
     Raises:
         Exception: If any step in the process fails.
     """
-    bucket_name = "panzoto"
-    audio_s3_folder = "audio_upload"
-    audio_file_name = "20241120_130800.wav"
-    transcripts_s3_folder = "transcripts"
+    transcripts_s3_folder = backend_config.AWS_S3_TRANSCRIPT_FOLDER
     download_dir = "data/processing_audio"
 
     try:
         # Step 1: Download audio file from S3
-        audio_s3_key = f"{audio_s3_folder}/{audio_file_name}"
         local_audio_path = download_from_s3(
             bucket_name=bucket_name,
             s3_key=audio_s3_key,
@@ -82,6 +84,7 @@ def transcribe_and_upload() -> None:
         duration = get_audio_duration(audio_path=local_audio_path)
         logger.debug(f"Audio duration: {duration} seconds")
 
+        # openai will not take audio shorter than 0.1 seconds
         if duration < 0.1:
             logger.info(
                 f"Audio duration is less than 0.1 seconds. Deleting file from "
@@ -132,10 +135,33 @@ def transcribe_and_upload() -> None:
                 logger.warning(f"Failed to remove local file {local_audio_path}: {e}")
 
 
+def transcribe_and_upload():
+    """Transcribe all audio from s3 folder
+
+    :param bucket_name: s3 bucket name
+    :type bucket_name: str
+    :param audio_s3_folder: the folder or s3 key that contains the audio files
+    :type audio_s3_folder: str
+    """
+    bucket_name = backend_config.AWS_S3_BUCKET_NAME
+
+    # Get all files in the folder
+    audio_files = list_s3_files(
+        bucket_name=bucket_name,
+        prefix=backend_config.AWS_S3_AUDIO_FOLDER,
+    )
+
+    # Transcribe for each file individually
+    for audio_file in audio_files:
+        transcribe_and_upload_one(
+            bucket_name=bucket_name,
+            audio_s3_folder=backend_config.AWS_S3_AUDIO_FOLDER,
+            audio_s3_key=audio_file,
+        )
+        break
+
+
 def main():
-    # audio_path = Path("data/20241120_130800.wav")
-    # response = transcribe_from_local(audio_path=audio_path)
-    # logger.info(f"Transcription: {response}")
 
     transcribe_and_upload()
 
