@@ -25,13 +25,13 @@ def setup_logger(log_dir: str = "logs"):
 
     # Define format strings
     file_format = (
-        "{time:YYYY-MM-DD at HH:mm:ss} | {level} | "
+        "{time:YYYY-MM-DD HH:mm:ss} | {level} | "
         "{file}:{function}:{line} - {message}"
     )
     console_format = (
-        "<green>{time:YYYY-MM-DD at HH:mm:ss}</green> | "
+        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
         "<level>{level}</level> | "
-        "<blue>{file}:{function}:{line} - {message}</blue>"
+        "<level>{file}:{function}:{line} - {message}</level>"
     )
 
     # Add a file sink without colorization
@@ -51,7 +51,7 @@ def setup_logger(log_dir: str = "logs"):
     logger.add(
         sys.stdout,
         format=console_format,
-        level="INFO",
+        level="DEBUG",
         enqueue=True,  # Enables asynchronous logging
         catch=True,  # Catches exceptions in the logging process
         colorize=True,  # Enable color codes for console logs
