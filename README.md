@@ -27,6 +27,8 @@
     ├── transcribe     # scripts to transcribe data on S3
         ├── aws_s3.py  # functions to download/upload files on S3
         ├── whipser.py # using openai whipser service to transcribe audio
+    ├── utils          # utility scripts for all backend code
+        ├── logger.py  # logging setup
 ├── data_structure     # pydantic models for data structures
     ├── models.py      # pydantic models
 ├── ui                 # frontend code folder
