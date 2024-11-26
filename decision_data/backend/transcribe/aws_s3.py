@@ -6,6 +6,9 @@ from loguru import logger
 from mypy_boto3_s3 import S3Client
 from decision_data.backend.config.config import backend_config
 from botocore.exceptions import BotoCoreError, ClientError
+from decision_data.backend.utils.logger import setup_logger
+
+setup_logger()
 
 
 def get_s3_client() -> S3Client:
@@ -112,5 +115,65 @@ def remove_s3_file(
         logger.info(f"Deleted original audio file from s3://{bucket_name}/{s3_key}")
     except ClientError as e:
         logger.error(f"Failed to delete original audio file from S3: {e}")
-        # Depending on your requirements, you might want to raise an exception here
-        # raise
+        raise
+
+
+def list_s3_files(
+    bucket_name: str,
+    prefix: str = "",
+) -> list:
+    """
+    List all file names in an S3 bucket with the given prefix, excluding folders.
+
+    Args:
+        bucket_name (str): Name of the S3 bucket.
+        prefix (str, optional): Prefix to filter files. Defaults to "".
+
+    Returns:
+        list: List of file keys matching the prefix, excluding folder keys.
+
+    Raises:
+        BotoCoreError: For boto3 related errors during listing.
+    """
+    # Initialize S3 client
+    s3_client = get_s3_client()
+    file_keys = []
+
+    try:
+        paginator = s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
+            if "Contents" in page:
+                for obj in page["Contents"]:
+                    key = obj["Key"]
+                    # Exclude the prefix itself and any 'folder' keys
+                    if key != prefix and not key.endswith("/"):
+                        file_keys.append(key)
+        logger.info(
+            f"Listed {len(file_keys)} files in bucket "
+            f"{bucket_name} with prefix '{prefix}'."
+        )
+        return file_keys
+    except ClientError as e:
+        logger.error(
+            f"ClientError while listing files in bucket "
+            f"{bucket_name} with prefix '{prefix}': {e}"
+        )
+        raise
+    except BotoCoreError as e:
+        logger.error(
+            f"BotoCoreError while listing files in bucket "
+            f"{bucket_name} with prefix '{prefix}': {e}"
+        )
+        raise
+
+
+def main():
+    file_names = list_s3_files(
+        bucket_name="panzoto",
+        prefix="transcripts",
+    )
+    logger.info(f"file_names: {file_names}")
+
+
+if __name__ == "__main__":
+    main()
