@@ -699,6 +699,17 @@ mypyc = ["setuptools (>=50)"]
 reports = ["lxml"]
 
 [[package]]
+name = "mypy-boto3-dynamodb"
+version = "1.35.60"
+description = "Type annotations for boto3.DynamoDB 1.35.60 service generated with mypy-boto3-builder 8.2.1"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "mypy_boto3_dynamodb-1.35.60-py3-none-any.whl", hash = "sha256:187915c781f352bc79d35b08a094605515ecc54f30107f629972c3358b864a5c"},
+    {file = "mypy_boto3_dynamodb-1.35.60.tar.gz", hash = "sha256:92eac35c49e9f3ff23a4ad6dee5dc54e410e0c49a98b4d93493c7000ebe74568"},
+]
+
+[[package]]
 name = "mypy-boto3-s3"
 version = "1.35.69"
 description = "Type annotations for boto3 S3 1.35.69 service generated with mypy-boto3-builder 8.3.1"
@@ -1400,4 +1411,4 @@ dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.13"
-content-hash = "f71981ac80c99d417b823031d30a9e3442a7a6e0d3d614c6e3d2cff16f20ae3b"
+content-hash = "d4124db446e50239704c7cf278b36ff0dd6b6041784402f2e1f036ee78b48585"
