@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "decision-data"
 version = "0.1.0"
-description = ""
+description = "Collect data to help people make decisions."
 authors = ["Yang Liu <yangliu3456@gmail.com>"]
 readme = "README.md"
 
@@ -20,7 +20,7 @@ praw = "^7.8.1"
 pymongo = "^4.10.1"
 loguru = "^0.7.2"
 openai = "^1.55.0"
-boto3-stubs = "^1.35.68"
+wave = "^0.0.2"
 
 [tool.poetry.group.dev.dependencies]  
 pytest = "^8.3.3"
@@ -32,7 +32,7 @@ mypy = "^1.13.0"
 black = "^24.10.0"
 flake8 = "^7.1.1"
 ruff = "^0.7.2"
-boto3-stubs = {extras = ["all"], version = "^1.35.68"}
+mypy-boto3-s3 = "^1.35.69"
 
 
 [build-system]
