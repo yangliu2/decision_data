@@ -4,6 +4,7 @@ from openai import OpenAI
 from pathlib import Path
 from loguru import logger
 import wave
+import time
 from datetime import datetime, timezone
 from decision_data.backend.config.config import backend_config
 from decision_data.backend.data.mongodb_client import MongoDBClient
@@ -219,7 +220,9 @@ def transcribe_and_upload():
 
 def main():
 
-    transcribe_and_upload()
+    while True:
+        transcribe_and_upload()
+        time.sleep(60)
 
 
 if __name__ == "__main__":
