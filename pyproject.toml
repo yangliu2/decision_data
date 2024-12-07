@@ -21,6 +21,7 @@ pymongo = "^4.10.1"
 loguru = "^0.7.2"
 openai = "^1.55.0"
 wave = "^0.0.2"
+boto3 = "^1.35.72"
 
 [tool.poetry.group.dev.dependencies]  
 pytest = "^8.3.3"
