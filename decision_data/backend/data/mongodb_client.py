@@ -4,6 +4,7 @@ from pymongo import MongoClient
 from loguru import logger
 import pymongo
 from typing import List, Dict, Any
+from datetime import datetime
 
 
 class MongoDBClient:
@@ -99,6 +100,27 @@ class MongoDBClient:
                 logger.error(f"Error inserting stories into MongoDB: {e}")
         else:
             logger.info("No stories to insert.")
+
+    def get_records_between_dates(
+        self,
+        date_field: str,
+        start_date_str: str,
+        end_date_str: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve records from the collection where 'created_utc' is between
+        start_date_str and end_date_str.
+
+        :param start_date_str: Start date string in the format 'YYYY-MM-DD HH:MM:SS'
+        :param end_date_str: End date string in the format 'YYYY-MM-DD HH:MM:SS'
+        :return: List of records
+        """
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d %H:%M:%S")
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d %H:%M:%S")
+
+        query = {date_field: {"$gte": start_date, "$lte": end_date}}
+
+        return list(self.collection.find(query).sort(date_field, 1))
 
     def close(self) -> None:
         """

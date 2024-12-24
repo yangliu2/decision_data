@@ -175,3 +175,5 @@ lint.txt
 /data/
 # mongo db
 compass-connections.json
+
+/.vscode/
