@@ -4,7 +4,6 @@ from pymongo import MongoClient
 from loguru import logger
 import pymongo
 from typing import List, Dict, Any
-from datetime import datetime
 
 
 class MongoDBClient:

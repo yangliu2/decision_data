@@ -1,10 +1,16 @@
 from decision_data.backend.data.mongodb_client import MongoDBClient
 from decision_data.backend.config.config import backend_config
+from decision_data.data_structure.models import Transcript
 
 from loguru import logger
 
 
-def generate_summary(year: str, month: str, day: str):
+def generate_summary(
+    year: str,
+    month: str,
+    day: str,
+):
+    """Generate a summary of all transcripts on a given day."""
     # Step 1: Filter transcription by time
 
     mongo_client = MongoDBClient(
@@ -28,7 +34,9 @@ def generate_summary(year: str, month: str, day: str):
 
     # Step 2: Combine all transcript into a single text
 
-    transcripts = [x["transcript"] for x in filtered_data]
+    filtered_objects = [Transcript(**x) for x in filtered_data]
+
+    transcripts = [x.transcript for x in filtered_objects]
     combined_text = " ".join(transcripts)
     logger.debug(f"combined text: {combined_text}")
 
