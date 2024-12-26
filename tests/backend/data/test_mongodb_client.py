@@ -57,9 +57,10 @@ def test_get_records_between_dates(mongodb_client):
     mock_collection.find.assert_called_once_with(
         {
             "created_utc": {
-                "$gte": datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S"),
-                "$lte": datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S"),
-            }
+                "$gte": "2023-01-01 00:00:00",
+                "$lte": "2023-01-31 23:59:59",
+            },
+            "transcript": {"$regex": ".{4,}"},
         }
     )
     mock_collection.find.return_value.sort.assert_called_once_with("created_utc", 1)
