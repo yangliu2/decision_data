@@ -106,21 +106,28 @@ class MongoDBClient:
         date_field: str,
         start_date_str: str,
         end_date_str: str,
+        min_transcript_length: int = 4,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve records from the collection where 'created_utc' is between
         start_date_str and end_date_str.
 
-        :param start_date_str: Start date string in the format 'YYYY-MM-DD HH:MM:SS'
-        :param end_date_str: End date string in the format 'YYYY-MM-DD HH:MM:SS'
+        :param start_date_str: Start date string in the format 'YYYY-MM-DDTHH:MM:SSZ'
+        :param end_date_str: End date string in the format 'YYYY-MM-DDTHH:MM:SSZ'
         :return: List of records
         """
-        start_date = datetime.strptime(start_date_str, "%Y-%m-%d %H:%M:%S")
-        end_date = datetime.strptime(end_date_str, "%Y-%m-%d %H:%M:%S")
 
-        query = {date_field: {"$gte": start_date, "$lte": end_date}}
+        logger.debug(f"Filtering data between {start_date_str} and {end_date_str}")
 
-        return list(self.collection.find(query).sort(date_field, 1))
+        query = {
+            "created_utc": {
+                "$gte": start_date_str,
+                "$lte": end_date_str,
+            },
+            "transcript": {"$regex": f".{{{min_transcript_length},}}"},
+        }
+        result = list(self.collection.find(query).sort(date_field, 1))
+        return result
 
     def close(self) -> None:
         """
