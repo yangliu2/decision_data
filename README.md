@@ -32,12 +32,20 @@
     ├── utils          # utility scripts for all backend code
         ├── logger.py  # logging setup
         ├── dynamo.py  # using AWS dynamo db as key value pair storage
+    ├── workflow       # workflow to generate results
+        ├── daily_summary.py    # generate the daily summary from transcription
 ├── data_structure     # pydantic models for data structures
     ├── models.py      # pydantic models
 ├── ui                 # frontend code folder
     ├── 
 ├── tests              # tests for repo
-    ├── test_sample.py # sample test file
+    ├── backend 
+        ├── data
+            ├── test_mongodb_client.py
+            ├── test_reddit.py
+        ├── transcribe
+            ├── test_aws_s3.py
+            ├── test_whisper.py
 ├── .env               # enviornment variables
 ├── flake8             # flake8 settings
 ├── .gitignore         # gitignore file
