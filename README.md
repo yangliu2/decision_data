@@ -3,6 +3,7 @@
   * `tox`
 * poetry
   * `poetry add <package name>` - add package to the poetry manager
+  * `poetry add <package name> --group dev` - add package to dev
   * `poetry build` to generate package
 * pytest
   * `pytest`
@@ -37,7 +38,9 @@
 ├── data_structure     # pydantic models for data structures
     ├── models.py      # pydantic models
 ├── ui                 # frontend code folder
-    ├── 
+    ├── email
+        ├── email.py  # sending email to the user
+    ├── workflow
 ├── tests              # tests for repo
     ├── backend 
         ├── data
