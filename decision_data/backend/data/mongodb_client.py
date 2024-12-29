@@ -4,6 +4,9 @@ from pymongo import MongoClient
 from loguru import logger
 import pymongo
 from typing import List, Dict, Any
+from decision_data.backend.utils.logger import setup_logger
+
+setup_logger()
 
 
 class MongoDBClient:

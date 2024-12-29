@@ -18,6 +18,7 @@ class BackendConfig(BaseSettings):
 
     # openai
     OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o-mini"
 
     # AWS
     AWS_ACCESS_KEY_ID: str = ""
