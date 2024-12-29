@@ -49,6 +49,9 @@
         ├── transcribe
             ├── test_aws_s3.py
             ├── test_whisper.py
+    ├── ui 
+        ├── email
+            ├── test_email.py
 ├── .env               # enviornment variables
 ├── flake8             # flake8 settings
 ├── .gitignore         # gitignore file

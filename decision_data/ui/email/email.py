@@ -33,7 +33,7 @@ def send_email(
     recipient_email: str,
     subject: str,
     message_body: str,
-):
+) -> str:
     """Sending an email to a recipient using the smtplib library."""
     # Set your email credentials (Gmail example)
     smtp_server = "smtp.gmail.com"
