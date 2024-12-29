@@ -30,6 +30,11 @@ class BackendConfig(BaseSettings):
     AWS_S3_AUDIO_FOLDER: str = "audio_upload"
     AWS_S3_TRANSCRIPT_FOLDER: str = "transcripts"
 
+    # Google voice
+    GOOGLE_APP_PASSWORD: str = ""
+    PHONE_NUMBER: str = ""
+    GMAIL_ACCOUNT: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

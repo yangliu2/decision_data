@@ -6,6 +6,7 @@ from decision_data.backend.config.config import backend_config
 from decision_data.data_structure.models import Transcript
 from decision_data.backend.utils.logger import setup_logger
 from decision_data.data_structure.models import DailySummary
+from decision_data.ui.email.email import send_email, format_message
 
 setup_logger()
 
@@ -68,9 +69,15 @@ def generate_summary(
     if parsed_response is None:
         raise ValueError("Parsed response is None")
 
-    logger.debug(f"family summary: {parsed_response.family_info}")
-    logger.debug(f"business summary: {parsed_response.business_info}")
-    logger.debug(f"misc summary: {parsed_response.misc_info}")
+    # Step 4: Send the summary to myself using email
+    subject = "PANZOTO: Daily Summary"
+    formated_message = format_message(llm_resopnse=parsed_response)
+
+    send_email(
+        subject=subject,
+        message_body=formated_message,
+        recipient_email=backend_config.GMAIL_ACCOUNT,
+    )
 
 
 def main():
