@@ -35,6 +35,8 @@
         ├── dynamo.py  # using AWS dynamo db as key value pair storage
     ├── workflow       # workflow to generate results
         ├── daily_summary.py    # generate the daily summary from transcription
+    ├── services       # automatic servies
+        ├── transcribe.service
 ├── data_structure     # pydantic models for data structures
     ├── models.py      # pydantic models
 ├── ui                 # frontend code folder
@@ -63,6 +65,10 @@
 ├── README.md          # readme file for entire repo
 ├── tox.ini            # tox setting file
 ```
+
+# Services
+The following services are automatically started in cloud server
+* `decision_data/backend/transcribe/whipser.py`
 
 # API
 * api.backend.api  

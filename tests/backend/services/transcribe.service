@@ -1,0 +1,14 @@
+[Unit]
+Description=Transcription Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/decision_data
+Environment="PATH=/root/decision_data/venv/bin"
+ExecStart=/root/decision_data/venv/bin/python /root/decision_data/decision_data/backend/transcribe/whisper.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
