@@ -62,7 +62,6 @@ def generate_summary(
         ],
         response_format=DailySummary,
     )
-    logger.debug(f"response: {completion}")
 
     parsed_response = completion.choices[0].message.parsed
 
@@ -86,7 +85,7 @@ def main():
     generate_summary(
         year="2024",
         month="12",
-        day="10",
+        day="11",
         prompt_path=prompt_path,
     )
 
