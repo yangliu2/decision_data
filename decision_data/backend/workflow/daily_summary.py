@@ -69,6 +69,15 @@ def generate_summary(
     if parsed_response is None:
         raise ValueError("Parsed response is None")
 
+    # If there is no information, do not send the email or save to database
+    if (
+        parsed_response.business_info is None
+        and parsed_response.family_info is None
+        and parsed_response.misc_info is None
+    ):
+        logger.info("No information to summarize.")
+        return
+
     # Step 4: Send the summary to myself using email
     subject = "PANZOTO: Daily Summary"
     date = f"{year}-{month}-{day}"
