@@ -17,7 +17,7 @@ def automation_controler():
     sent_daily = False
 
     while True:
-        # Reset all flags
+        # Reset all flags at 2 am
         if get_current_hour() == 2:
             sent_daily = False
 
