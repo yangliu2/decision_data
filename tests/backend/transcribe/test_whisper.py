@@ -1,14 +1,9 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from pathlib import Path
 from decision_data.backend.transcribe.whisper import (
-    get_audio_duration,
-    transcribe_from_local,
     get_utc_datetime,
     save_to_mongodb,
-    transcribe_and_upload_one,
     transcribe_and_upload,
-    main,
 )
 
 

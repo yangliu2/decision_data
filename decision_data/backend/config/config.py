@@ -35,6 +35,10 @@ class BackendConfig(BaseSettings):
     PHONE_NUMBER: str = ""
     GMAIL_ACCOUNT: str = ""
 
+    # Daily summary time
+    DAILY_SUMMARY_HOUR: int = 17
+    TIME_OFFSET: int = 0
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
