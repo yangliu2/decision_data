@@ -5,6 +5,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class BackendConfig(BaseSettings):
 
+    # prompt path
+    DAILY_SUMMAYR_PROMPT_PATH: str = "decision_data/prompts/daily_summary.txt"
+
     # Reddit setting
     REDDIT_CLIENT_ID: str = ""
     REDDIT_CLIENT_SECRET: str = ""
@@ -37,7 +40,9 @@ class BackendConfig(BaseSettings):
 
     # Daily summary time
     DAILY_SUMMARY_HOUR: int = 17
-    TIME_OFFSET: int = 6
+    TIME_OFFSET: int = -6
+    DAILY_RESET_HOUR: int = 2
+    TRANSCRIBER_INTERVAL: int = 60
 
     model_config = SettingsConfigDict(
         env_file=".env",

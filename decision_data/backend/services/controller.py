@@ -8,17 +8,29 @@ from decision_data.backend.config.config import backend_config
 from decision_data.backend.workflow.daily_summary import generate_summary
 
 
-def get_current_hour(offset: int = 0) -> int:
+def get_current_hour(offset: int) -> int:
+    """Get the current hour with offset
+
+    :param offset: time off set from the user's current time to UTC. + for
+    ahead of UTC, - for behind UTC
+    :type offset: int
+    :return: offset hour
+    :rtype: int
+    """
     current_hour = datetime.now().hour
-    return current_hour - offset
+    return current_hour + offset
 
 
 def automation_controler():
+    """Main service controller for running the backend services"""
+
     sent_daily = False
 
     while True:
-        # Reset all flags at 2 am
-        if get_current_hour() == 2:
+        current_time = datetime.now()
+
+        # Reset all flags
+        if current_time.hour == backend_config.DAILY_RESET_HOUR:
             sent_daily = False
 
         # Transcribe audio and upload to s3
@@ -29,16 +41,16 @@ def automation_controler():
             get_current_hour(offset=backend_config.TIME_OFFSET)
             == backend_config.DAILY_SUMMARY_HOUR
         ) and not sent_daily:
-            prompt_path = Path("decision_data/prompts/daily_summary.txt")
+            prompt_path = Path(backend_config.DAILY_SUMMAYR_PROMPT_PATH)
             generate_summary(
-                year="2022",
-                month="03",
-                day="01",
+                year=str(current_time.year),
+                month=str(current_time.month),
+                day=str(current_time.day),
                 prompt_path=prompt_path,
             )
             sent_daily = True
 
-        time.sleep(60)
+        time.sleep(backend_config.TRANSCRIBER_INTERVAL)
 
 
 def main():
