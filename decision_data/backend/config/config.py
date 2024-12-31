@@ -18,6 +18,7 @@ class BackendConfig(BaseSettings):
     MONGODB_DB_NAME: str = ""
     MONGODB_REDDIT_COLLECTION_NAME: str = ""
     MONGODB_TRANSCRIPTS_COLLECTION_NAME: str = ""
+    MONGODB_DAILY_SUMMARY_COLLECTION_NAME: str = ""
 
     # openai
     OPENAI_API_KEY: str = ""

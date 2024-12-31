@@ -36,6 +36,7 @@ def generate_summary(
         start_date_str=start_data_str,
         end_date_str=end_date_str,
     )
+    mongo_client.close()
 
     logger.debug(f"number of transcript on day {day}: {len(filtered_data)}")
 
@@ -70,13 +71,29 @@ def generate_summary(
 
     # Step 4: Send the summary to myself using email
     subject = "PANZOTO: Daily Summary"
-    formated_message = format_message(llm_resopnse=parsed_response)
+    date = f"{year}-{month}-{day}"
+    formated_message = format_message(
+        llm_resopnse=parsed_response,
+        date=date,
+    )
 
     send_email(
         subject=subject,
         message_body=formated_message,
         recipient_email=backend_config.GMAIL_ACCOUNT,
     )
+
+    # Step 5: Save the summary to MongoDB
+    mongo_client = MongoDBClient(
+        uri=backend_config.MONGODB_URI,
+        db=backend_config.MONGODB_DB_NAME,
+        collection=backend_config.MONGODB_DAILY_SUMMARY_COLLECTION_NAME,
+    )
+    record = parsed_response.model_dump()
+    record[date_field] = date
+    mongo_client.insert_daily_summary(summary_data=[record])
+    logger.info(f"Inserted one summary on day: {start_data_str}.")
+    mongo_client.close()
 
 
 def main():

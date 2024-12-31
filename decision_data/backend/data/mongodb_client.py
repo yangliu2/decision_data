@@ -144,3 +144,19 @@ class MongoDBClient:
             ```
         """
         self.client.close()
+
+    def insert_daily_summary(self, summary_data: List[Dict[str, Any]]) -> None:
+        """insert daily summary into mongo collection
+
+        :param summary_data: summary data in dictionary format
+        :type summary_data: List[Dict[str, Any]]
+        """
+
+        if summary_data:
+            try:
+                self.collection.insert_many(summary_data, ordered=False)
+                logger.info(f"Inserted {len(summary_data)} transcripts into MongoDB.")
+            except Exception as e:
+                logger.error(f"Error inserting stories into MongoDB: {e}")
+        else:
+            logger.info("No stories to insert.")
