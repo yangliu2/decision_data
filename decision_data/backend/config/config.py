@@ -37,7 +37,7 @@ class BackendConfig(BaseSettings):
 
     # Daily summary time
     DAILY_SUMMARY_HOUR: int = 17
-    TIME_OFFSET: int = 0
+    TIME_OFFSET: int = 6
 
     model_config = SettingsConfigDict(
         env_file=".env",

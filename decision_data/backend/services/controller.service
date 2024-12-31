@@ -1,5 +1,5 @@
 [Unit]
-Description=Transcription Service
+Description=Service Controller
 After=network.target
 
 [Service]
@@ -7,7 +7,7 @@ Type=simple
 User=root
 WorkingDirectory=/root/decision_data
 Environment="PATH=/root/decision_data/venv/bin"
-ExecStart=/root/decision_data/venv/bin/python /root/decision_data/decision_data/backend/transcribe/whisper.py
+ExecStart=/root/decision_data/venv/bin/python /root/decision_data/decision_data/backend/services/controller.py
 Restart=on-failure
 
 [Install]
