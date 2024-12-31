@@ -36,7 +36,8 @@
     ├── workflow       # workflow to generate results
         ├── daily_summary.py    # generate the daily summary from transcription
     ├── services       # automatic servies
-        ├── transcribe.service
+        ├── controller.service
+        ├── controller.py
 ├── data_structure     # pydantic models for data structures
     ├── models.py      # pydantic models
 ├── ui                 # frontend code folder
