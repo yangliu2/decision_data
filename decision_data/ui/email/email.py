@@ -7,9 +7,13 @@ from email.mime.multipart import MIMEMultipart
 from decision_data.data_structure.models import DailySummary
 
 
-def format_message(llm_resopnse: DailySummary) -> str:
+def format_message(
+    llm_resopnse: DailySummary,
+    date: str,
+) -> str:
     """Format the LLM response into an HTML email message."""
     body = f"""
+    <h2>{date}</h2>
     <h2>Family</h2>
     <ul>
         {''.join([f'<li>{item}</li>' for item in llm_resopnse.family_info])}

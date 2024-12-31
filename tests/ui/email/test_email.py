@@ -11,8 +11,10 @@ def test_format_message():
         business_info=["Business meeting 1", "Business meeting 2"],
         misc_info=["Misc info 1", "Misc info 2"],
     )
+    date = "2022-01-01"
 
     expected_message = """
+    <h2>2022-01-01</h2>
     <h2>Family</h2>
     <ul>
         <li>Family event 1</li><li>Family event 2</li>
@@ -29,7 +31,7 @@ def test_format_message():
     </ul>
     """
 
-    formatted_message = format_message(llm_response)
+    formatted_message = format_message(llm_response, date)
     assert formatted_message.strip() == expected_message.strip()
 
 
