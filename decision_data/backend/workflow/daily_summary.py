@@ -1,6 +1,8 @@
 from loguru import logger
 from openai import OpenAI
 from pathlib import Path
+from pydantic import ValidationError
+from datetime import datetime, timedelta
 from decision_data.backend.data.mongodb_client import MongoDBClient
 from decision_data.backend.config.config import backend_config
 from decision_data.data_structure.models import Transcript
@@ -27,13 +29,22 @@ def generate_summary(
     )
 
     date_field = "created_utc"
-    next_day = str(int(day) + 1)
-    start_data_str = f"{year}-{month}-{day}T00:00:00Z"
-    end_date_str = f"{year}-{month}-{next_day}T00:00:00Z"
+    offset = backend_config.TIME_OFFSET_FROM_UTC
+
+    # Convert offset to timedelta
+    offset_timedelta = timedelta(hours=offset)
+
+    # Create datetime objects for start and end of the day
+    start_datetime = datetime(int(year), int(month), int(day)) - offset_timedelta
+    end_datetime = start_datetime + timedelta(days=1)
+
+    # Format the datetime objects to the required string format
+    start_date_str = start_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end_date_str = end_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     filtered_data = mongo_client.get_records_between_dates(
         date_field=date_field,
-        start_date_str=start_data_str,
+        start_date_str=start_date_str,
         end_date_str=end_date_str,
     )
     mongo_client.close()
@@ -42,7 +53,12 @@ def generate_summary(
 
     # Step 2: Combine all transcript into a single text
 
-    filtered_objects = [Transcript(**x) for x in filtered_data]
+    try:
+        filtered_objects = [Transcript(**x) for x in filtered_data]
+    except ValidationError:
+        logger.debug(f"filtered data: {filtered_data}")
+        logger.error("Failed to parse the transcript data. Probably missing fields.")
+        return
 
     transcripts = [x.transcript for x in filtered_objects]
     combined_text = " ".join(transcripts)
@@ -66,14 +82,14 @@ def generate_summary(
 
     parsed_response = completion.choices[0].message.parsed
 
-    if parsed_response is None:
+    if not parsed_response:
         raise ValueError("Parsed response is None")
 
     # If there is no information, do not send the email or save to database
     if (
-        parsed_response.business_info is None
-        and parsed_response.family_info is None
-        and parsed_response.misc_info is None
+        not parsed_response.business_info
+        and not parsed_response.family_info
+        and not parsed_response.misc_info
     ):
         logger.info("No information to summarize.")
         return
@@ -101,7 +117,7 @@ def generate_summary(
     record = parsed_response.model_dump()
     record[date_field] = date
     mongo_client.insert_daily_summary(summary_data=[record])
-    logger.info(f"Inserted one summary on day: {start_data_str}.")
+    logger.info(f"Inserted one summary on day: {start_date_str}.")
     mongo_client.close()
 
 
@@ -111,7 +127,7 @@ def main():
     generate_summary(
         year="2024",
         month="12",
-        day="11",
+        day="21",
         prompt_path=prompt_path,
     )
 
