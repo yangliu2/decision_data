@@ -41,7 +41,7 @@ class BackendConfig(BaseSettings):
 
     # Daily summary time
     DAILY_SUMMARY_HOUR: int = 17
-    TIME_OFFSET: int = 0
+    TIME_OFFSET_FROM_UTC: int = -6
     DAILY_RESET_HOUR: int = 2
     TRANSCRIBER_INTERVAL: int = 60
 

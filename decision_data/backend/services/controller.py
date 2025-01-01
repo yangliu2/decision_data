@@ -38,7 +38,7 @@ def automation_controler():
 
         # Generate daily summary at the specified time
         if (
-            get_current_hour(offset=backend_config.TIME_OFFSET)
+            get_current_hour(offset=backend_config.TIME_OFFSET_FROM_UTC)
             == backend_config.DAILY_SUMMARY_HOUR
         ) and not sent_daily:
             prompt_path = Path(backend_config.DAILY_SUMMAYR_PROMPT_PATH)
