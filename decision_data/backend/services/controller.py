@@ -1,7 +1,7 @@
 """ Using whisper as transcribe service """
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from decision_data.backend.transcribe.whisper import transcribe_and_upload
 from decision_data.backend.config.config import backend_config
@@ -17,7 +17,7 @@ def get_current_hour(offset: int) -> int:
     :return: offset hour
     :rtype: int
     """
-    current_hour = datetime.now().hour
+    current_hour = datetime.now(timezone.utc).hour
     return current_hour + offset
 
 
@@ -27,10 +27,13 @@ def automation_controler():
     sent_daily = False
 
     while True:
-        current_time = datetime.now()
+        current_utc_time = datetime.now(timezone.utc)
 
         # Reset all flags
-        if current_time.hour == backend_config.DAILY_RESET_HOUR:
+        if (
+            current_utc_time.hour
+            == backend_config.DAILY_RESET_HOUR + backend_config.TIME_OFFSET_FROM_UTC
+        ):
             sent_daily = False
 
         # Transcribe audio and upload to s3
@@ -43,9 +46,9 @@ def automation_controler():
         ) and not sent_daily:
             prompt_path = Path(backend_config.DAILY_SUMMAYR_PROMPT_PATH)
             generate_summary(
-                year=str(current_time.year),
-                month=str(current_time.month),
-                day=str(current_time.day),
+                year=str(current_utc_time.year),
+                month=str(current_utc_time.month),
+                day=str(current_utc_time.day),
                 prompt_path=prompt_path,
             )
             sent_daily = True
