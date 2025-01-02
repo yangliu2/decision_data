@@ -35,7 +35,7 @@ flake8 = "^7.1.1"
 ruff = "^0.7.2"
 mypy-boto3-s3 = "^1.35.69"
 mypy-boto3-dynamodb = "^1.35.60"
-
+pytest-mock = "^3.14.0"
 
 [build-system]
 requires = ["poetry-core"]
