@@ -29,13 +29,9 @@ def generate_summary(
     )
 
     date_field = "created_utc"
-    offset = backend_config.TIME_OFFSET_FROM_UTC
-
-    # Convert offset to timedelta
-    offset_timedelta = timedelta(hours=offset)
 
     # Create datetime objects for start and end of the day
-    start_datetime = datetime(int(year), int(month), int(day)) - offset_timedelta
+    start_datetime = datetime(int(year), int(month), int(day)) + timedelta(days=-1)
     end_datetime = start_datetime + timedelta(days=1)
 
     # Format the datetime objects to the required string format
@@ -125,9 +121,9 @@ def main():
 
     prompt_path = Path("decision_data/prompts/daily_summary.txt")
     generate_summary(
-        year="2024",
-        month="12",
-        day="21",
+        year="2025",
+        month="01",
+        day="03",
         prompt_path=prompt_path,
     )
 
