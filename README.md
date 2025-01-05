@@ -76,3 +76,6 @@ The following services are automatically started in cloud server
 `http://127.0.0.1:8000/api/stories?source=reddit&subreddit=decisions&limit=5`
 * get stories from reddit and save to mongo db
 `curl -X POST "http://127.0.0.1:8000/api/save_stories?num_posts=1000"`
+
+# Bug list
+Datetime object wasn't saving to the mongo db as date object. Filtering it with string format have weird results. 
