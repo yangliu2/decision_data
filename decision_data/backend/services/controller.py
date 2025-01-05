@@ -21,6 +21,18 @@ def get_current_hour(offset: int) -> int:
     return current_hour + offset
 
 
+def is_time_to_send_daily_summary():
+    """Check if it is time to send daily summary"""
+    current_hour_utc = get_current_hour(offset=backend_config.TIME_OFFSET_FROM_UTC)
+    return current_hour_utc == backend_config.DAILY_SUMMARY_HOUR
+
+
+def is_reset_time():
+    """Check if it is time to reset time flags for the day"""
+    current_hour_utc = get_current_hour(offset=backend_config.TIME_OFFSET_FROM_UTC)
+    return current_hour_utc == backend_config.DAILY_RESET_HOUR
+
+
 def automation_controler():
     """Main service controller for running the backend services"""
 
@@ -30,20 +42,14 @@ def automation_controler():
         current_utc_time = datetime.now(timezone.utc)
 
         # Reset all flags
-        if (
-            current_utc_time.hour
-            == backend_config.DAILY_RESET_HOUR + backend_config.TIME_OFFSET_FROM_UTC
-        ):
+        if is_reset_time():
             sent_daily = False
 
         # Transcribe audio and upload to s3
         transcribe_and_upload()
 
         # Generate daily summary at the specified time
-        if (
-            get_current_hour(offset=backend_config.TIME_OFFSET_FROM_UTC)
-            == backend_config.DAILY_SUMMARY_HOUR
-        ) and not sent_daily:
+        if is_time_to_send_daily_summary() and not sent_daily:
             prompt_path = Path(backend_config.DAILY_SUMMAYR_PROMPT_PATH)
             generate_summary(
                 year=str(current_utc_time.year),
