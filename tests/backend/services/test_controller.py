@@ -1,6 +1,8 @@
 from decision_data.backend.services.controller import (
     get_current_hour,
     automation_controler,
+    is_time_to_send_daily_summary,
+    is_reset_time,
 )
 from pathlib import Path
 from decision_data.backend.config.config import backend_config
@@ -125,3 +127,37 @@ def test_automation_controler_reset(
     assert mock_transcribe_and_upload.call_count == max_iterations
     mock_generate_summary.assert_not_called()
     assert mock_time_sleep.call_count == max_iterations
+
+
+def test_is_time_to_send_daily_summary(mocker):
+    # Arrange
+    mocker.patch.object(backend_config, "DAILY_SUMMARY_HOUR", 17)
+    mocker.patch.object(backend_config, "TIME_OFFSET_FROM_UTC", -6)
+    mock_get_current_hour = mocker.patch(
+        "decision_data.backend.services.controller.get_current_hour"
+    )
+    mock_get_current_hour.return_value = 17
+
+    # Act
+    result = is_time_to_send_daily_summary()
+
+    # Assert
+    assert result is True
+    mock_get_current_hour.assert_called_once_with(offset=-6)
+
+
+def test_is_reset_time(mocker):
+    # Arrange
+    mocker.patch.object(backend_config, "DAILY_RESET_HOUR", 2)
+    mocker.patch.object(backend_config, "TIME_OFFSET_FROM_UTC", -6)
+    mock_get_current_hour = mocker.patch(
+        "decision_data.backend.services.controller.get_current_hour"
+    )
+    mock_get_current_hour.return_value = 2
+
+    # Act
+    result = is_reset_time()
+
+    # Assert
+    assert result is True
+    mock_get_current_hour.assert_called_once_with(offset=-6)
