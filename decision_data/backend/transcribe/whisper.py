@@ -100,6 +100,7 @@ def transcribe_and_upload_one(
     audio_s3_key: str,
     download_dir: str = "data/processing_audio",
     min_duration: float = 3.0,
+    max_duration: float = 30.0,
 ) -> None:
     """
     Main function to orchestrate downloading from S3, transcribing, uploading
@@ -114,6 +115,8 @@ def transcribe_and_upload_one(
         download_dir (str): Local directory path to download audio files.
         min_duration (int): Minimum audio length for transcription. Default to
         3.0 seconds.
+        max_duration (int): Maximum audio length for transcription. Default to
+        30.0 seconds. This is the limite whipser can handle.
 
     Raises:
         Exception: If any step in the process fails.
@@ -136,9 +139,10 @@ def transcribe_and_upload_one(
         logger.debug(f"Audio duration: {duration} seconds")
 
         # openai will not take audio shorter than min duration
-        if duration < min_duration:
+        if min_duration < duration < max_duration:
             logger.info(
-                f"Audio duration is less than {min_duration} seconds. Deleting"
+                f"Audio duration is less than {min_duration} seconds, or "
+                f"longer than {max_duration}. Deleting"
                 f"file from S3: {audio_s3_key}"
             )
             remove_s3_file(
