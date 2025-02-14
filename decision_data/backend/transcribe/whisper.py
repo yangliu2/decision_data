@@ -226,7 +226,7 @@ def main():
 
     while True:
         transcribe_and_upload()
-        time.sleep(60)
+        time.sleep(600)
 
 
 if __name__ == "__main__":
