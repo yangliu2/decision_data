@@ -1,12 +1,17 @@
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Depends
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 
 from decision_data.backend.data.reddit import RedditScraper
-from decision_data.data_structure.models import Story
+from decision_data.data_structure.models import (
+    Story, User, UserCreate, UserLogin, AudioFile, AudioFileCreate
+)
 from decision_data.backend.data.save_reddit_posts import (
     save_reddit_story_to_mongo,
 )
+from decision_data.backend.services.user_service import UserService
+from decision_data.backend.services.audio_service import AudioFileService
+from decision_data.backend.utils.auth import generate_jwt_token, get_current_user
 
 app = FastAPI(title="Decision Stories API")
 app.add_middleware(
@@ -112,3 +117,156 @@ async def save_stories_endpoint(
     """
     background_tasks.add_task(save_reddit_story_to_mongo, num_posts)
     return {"message": "Saving stories in the background."}
+
+
+# User Management Endpoints
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "decision-data-backend", "database": "dynamodb"}
+
+
+@app.post("/api/register")
+async def register(user_data: UserCreate):
+    """Register new user with email and password"""
+    try:
+        # Validation
+        if len(user_data.password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+        user_service = UserService()
+        user = user_service.create_user(user_data)
+
+        if not user:
+            raise HTTPException(status_code=409, detail="User already exists")
+
+        # Generate JWT token
+        token = generate_jwt_token(user.user_id)
+
+        return {
+            "token": token,
+            "user_id": user.user_id,
+            "key_salt": user.key_salt,  # Send salt for key derivation
+            "user": {
+                "user_id": user.user_id,
+                "email": user.email,
+                "created_at": user.created_at.isoformat()
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Registration failed")
+
+
+@app.post("/api/login")
+async def login(login_data: UserLogin):
+    """Authenticate user with email and password"""
+    try:
+        user_service = UserService()
+        user = user_service.authenticate_user(login_data)
+
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+
+        # Generate JWT token
+        token = generate_jwt_token(user.user_id)
+
+        return {
+            "token": token,
+            "user_id": user.user_id,
+            "key_salt": user.key_salt,
+            "user": {
+                "user_id": user.user_id,
+                "email": user.email,
+                "created_at": user.created_at.isoformat()
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Login failed")
+
+
+@app.get("/api/user/audio-files", response_model=List[AudioFile])
+async def get_user_audio_files(
+    current_user_id: str = Depends(get_current_user),
+    limit: int = Query(50, ge=1, le=100)
+):
+    """Get list of user's audio files"""
+    try:
+        audio_service = AudioFileService()
+        audio_files = audio_service.get_user_audio_files(current_user_id, limit=limit)
+        return audio_files
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to retrieve audio files")
+
+
+@app.post("/api/audio-file", response_model=AudioFile)
+async def create_audio_file(
+    file_data: AudioFileCreate,
+    current_user_id: str = Depends(get_current_user)
+):
+    """Create new audio file record"""
+    try:
+        audio_service = AudioFileService()
+        audio_file = audio_service.create_audio_file(current_user_id, file_data)
+
+        if not audio_file:
+            raise HTTPException(status_code=500, detail="Failed to create audio file record")
+
+        return audio_file
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create audio file")
+
+
+@app.get("/api/audio-file/{file_id}", response_model=AudioFile)
+async def get_audio_file(
+    file_id: str,
+    current_user_id: str = Depends(get_current_user)
+):
+    """Get audio file by ID (only if owned by user)"""
+    try:
+        audio_service = AudioFileService()
+        audio_file = audio_service.get_audio_file_by_id(file_id)
+
+        if not audio_file:
+            raise HTTPException(status_code=404, detail="Audio file not found")
+
+        if audio_file.user_id != current_user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        return audio_file
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to retrieve audio file")
+
+
+@app.delete("/api/audio-file/{file_id}")
+async def delete_audio_file(
+    file_id: str,
+    current_user_id: str = Depends(get_current_user)
+):
+    """Delete audio file record"""
+    try:
+        audio_service = AudioFileService()
+        success = audio_service.delete_audio_file(file_id, current_user_id)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Audio file not found")
+
+        return {"message": "Audio file deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to delete audio file")
