@@ -30,7 +30,7 @@
     ├── transcribe     # scripts to transcribe data on S3
         ├── aws_s3.py  # functions to download/upload files on S3
         ├── whipser.py # using openai whipser service to transcribe audio
-    ├── utils          # utility scripts for all backend code
+    ├── utils          # utility scripts for all backend code 
         ├── logger.py  # logging setup
         ├── dynamo.py  # using AWS dynamo db as key value pair storage
     ├── workflow       # workflow to generate results
