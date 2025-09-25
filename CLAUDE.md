@@ -163,3 +163,10 @@ This is a decision data collection system that scrapes stories from Reddit, tran
 - **Updated API**: Added 7 new endpoints to existing FastAPI app
 - **Updated Config**: Added DynamoDB and auth configuration
 - **Documentation**: Created comprehensive guides in `docs/` folder
+
+### Project Documentation & Tracking:
+- **Confluence Space**: **Panzoto** - All project documentation and architecture
+- **Jira Project**: **Audio Recording (Android)** (CCS) - Epic and story tracking
+- **Related Android Project**: `/Users/fangfanglai/AndroidStudioProjects/Panzoto/claude.md`
+
+**Note**: This backend serves as the authentication and user management system for the Panzoto Android audio recording app. The Android project contains the security implementation roadmap that this backend fulfills (Phase 1.2 - Database Setup and 1.3 - Backend API Setup).
