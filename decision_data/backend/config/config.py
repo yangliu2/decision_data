@@ -34,6 +34,13 @@ class BackendConfig(BaseSettings):
     AWS_S3_AUDIO_FOLDER: str = "audio_upload"
     AWS_S3_TRANSCRIPT_FOLDER: str = "transcripts"
 
+    # DynamoDB Tables
+    USERS_TABLE: str = "panzoto-users"
+    AUDIO_FILES_TABLE: str = "panzoto-audio-files"
+
+    # Authentication
+    SECRET_KEY: str = "your-secret-key-change-in-production"
+
     # Google voice
     GOOGLE_APP_PASSWORD: str = ""
     PHONE_NUMBER: str = ""
