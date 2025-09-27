@@ -31,6 +31,12 @@ This is a decision data collection system that scrapes stories from Reddit, tran
 - Health check: `curl http://206.189.185.129:8000/api/health`
 - Deployment logs: GitHub Actions workflow runs
 
+### Project Management & Documentation
+- **Jira Project**: Audio Recording (Android) (CCS) - https://panzoto.atlassian.net/browse/CCS
+- **Confluence Space**: Panzoto - https://panzoto.atlassian.net/wiki/spaces/PANZOTO
+- **Atlassian API Guide**: `docs/atlassian_api_guide.md` - Complete reference for Jira/Confluence integration
+- Current deployment story: [CCS-37](https://panzoto.atlassian.net/browse/CCS-37)
+
 ### Building
 - `poetry build` - Generate package
 
@@ -91,6 +97,12 @@ This is a decision data collection system that scrapes stories from Reddit, tran
 - **Automated Deployment**: GitHub Actions on push to main branch
 - **Monthly Cost**: ~$4-6 (80% savings vs App Platform)
 - **Deployment Documentation**: `docs/deployment_guide.md`
+
+### Project Management & Documentation
+- **Jira Integration**: REST API v3 with Atlassian Document Format (ADF)
+- **Confluence Integration**: Storage Format (XHTML-based) for page content
+- **Atlassian API Reference**: `docs/atlassian_api_guide.md`
+- **Authentication**: API tokens with Base64 encoding for REST API calls
 
 # Current Progress
 
