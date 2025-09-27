@@ -25,6 +25,12 @@ This is a decision data collection system that scrapes stories from Reddit, tran
 - `uvicorn decision_data.api.backend.api:app --reload` - Start development server
 - `./start_api_server.sh` - Start API server using script
 
+### Deployment
+- `git push origin main` - Triggers automated deployment to DigitalOcean droplet
+- Production API: `http://206.189.185.129:8000`
+- Health check: `curl http://206.189.185.129:8000/api/health`
+- Deployment logs: GitHub Actions workflow runs
+
 ### Building
 - `poetry build` - Generate package
 
@@ -79,6 +85,12 @@ This is a decision data collection system that scrapes stories from Reddit, tran
 
 ### Known Issues
 - DateTime objects have inconsistent saving to MongoDB, causing filtering issues
+
+### Deployment & Hosting
+- **Production Environment**: DigitalOcean Droplet (ubuntu-s-1vcpu-512mb-10gb-nyc1-01)
+- **Automated Deployment**: GitHub Actions on push to main branch
+- **Monthly Cost**: ~$4-6 (80% savings vs App Platform)
+- **Deployment Documentation**: `docs/deployment_guide.md`
 
 # Current Progress
 
