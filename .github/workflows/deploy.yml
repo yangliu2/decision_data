@@ -1,0 +1,57 @@
+name: Deploy to DigitalOcean Droplet
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+
+    - name: Add server to known hosts
+      run: |
+        ssh-keyscan -H 206.189.185.129 >> ~/.ssh/known_hosts
+
+    - name: Deploy to server
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.DO_SSH_USER }}@206.189.185.129 << 'EOF'
+          # Navigate to project directory
+          cd /root/decision_data
+
+          # Pull latest changes
+          git pull origin main
+
+          # Install dependencies using Poetry
+          poetry install --only=main
+
+          # Stop existing API process
+          pkill -f "uvicorn.*decision_data" || true
+
+          # Wait a moment for process to stop
+          sleep 2
+
+          # Start the API service
+          nohup poetry run uvicorn decision_data.api.backend.api:app --host 0.0.0.0 --port 8000 > /var/log/decision-data-api.log 2>&1 &
+
+          # Verify it started
+          sleep 3
+          if pgrep -f "uvicorn.*decision_data" > /dev/null; then
+            echo "✅ API service started successfully"
+          else
+            echo "❌ API service failed to start"
+            tail -20 /var/log/decision-data-api.log
+            exit 1
+          fi
+
+          echo "🚀 Deployment completed successfully"
+        EOF
