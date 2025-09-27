@@ -5,7 +5,9 @@
 You need to add these secrets to your GitHub repository:
 
 ### 1. DO_SSH_PRIVATE_KEY
-Copy your SSH private key content:
+✅ **Updated with passphrase-free deployment key**
+
+Copy this NEW deployment key (no passphrase required):
 ```
 ```
 
