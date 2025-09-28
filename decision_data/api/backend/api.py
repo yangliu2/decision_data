@@ -292,13 +292,24 @@ async def create_audio_file(
     file_data: AudioFileCreate,
     current_user_id: str = Depends(get_current_user)
 ):
-    """Create new audio file record"""
+    """Create new audio file record and automatically create transcription job"""
     try:
         audio_service = AudioFileService()
         audio_file = audio_service.create_audio_file(current_user_id, file_data)
 
         if not audio_file:
             raise HTTPException(status_code=500, detail="Failed to create audio file record")
+
+        # Automatically create transcription job for the uploaded audio file
+        from decision_data.backend.services.transcription_service import UserTranscriptionService
+        transcription_service = UserTranscriptionService()
+        job_id = transcription_service.create_processing_job(
+            user_id=current_user_id,
+            job_type="transcription",
+            audio_file_id=audio_file.file_id
+        )
+
+        print(f"Created transcription job {job_id} for audio file {audio_file.file_id}")
 
         return audio_file
 
@@ -482,7 +493,7 @@ class TranscriptionRequest(BaseModel):
     password: str
 
 @app.post("/api/transcribe/audio-file/{file_id}")
-@limiter.limit("5/minute")  # Reduced limit for cost safety
+@limiter.limit(f"{backend_config.TRANSCRIPTION_RATE_LIMIT_PER_MINUTE}/minute")  # Cost safety rate limit
 async def transcribe_audio_file(
     request: Request,
     file_id: str,
@@ -500,12 +511,13 @@ async def transcribe_audio_file(
         if not audio_file or audio_file.user_id != current_user_id:
             raise HTTPException(status_code=404, detail="Audio file not found")
 
-        # Safety check: File size limit (5MB)
+        # Safety check: File size limit
         file_size_mb = audio_file.file_size / (1024 * 1024)
-        if file_size_mb > 5.0:
+        max_size = backend_config.TRANSCRIPTION_MAX_FILE_SIZE_MB
+        if file_size_mb > max_size:
             raise HTTPException(
                 status_code=400,
-                detail=f"File too large ({file_size_mb:.1f}MB). Maximum 5MB allowed."
+                detail=f"File too large ({file_size_mb:.1f}MB). Maximum {max_size}MB allowed."
             )
 
         # Safety check: Check for existing pending/processing jobs for this file

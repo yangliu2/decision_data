@@ -28,14 +28,17 @@ logger = logging.getLogger(__name__)
 class SafeAudioProcessor:
     """Cost-safe automatic audio processor with strict limits."""
 
-    # Safety limits to prevent expensive loops
-    MAX_FILE_SIZE_MB = 5  # 5MB limit
-    MAX_RETRIES = 3  # Maximum 3 attempts per file
-    PROCESSING_TIMEOUT_MINUTES = 5  # 5 minute timeout
-    RETRY_BACKOFF_MINUTES = 10  # 10 minutes between retries
-    CHECK_INTERVAL_SECONDS = 60  # Check every minute (not 30 seconds)
-
     def __init__(self):
+        # Load safety limits from config
+        self.MAX_FILE_SIZE_MB = backend_config.TRANSCRIPTION_MAX_FILE_SIZE_MB
+        self.MAX_RETRIES = backend_config.TRANSCRIPTION_MAX_RETRIES
+        self.PROCESSING_TIMEOUT_MINUTES = backend_config.TRANSCRIPTION_TIMEOUT_MINUTES
+        self.RETRY_BACKOFF_MINUTES = backend_config.TRANSCRIPTION_RETRY_BACKOFF_MINUTES
+        self.CHECK_INTERVAL_SECONDS = backend_config.TRANSCRIPTION_CHECK_INTERVAL_SECONDS
+        self.MAX_DURATION_SECONDS = backend_config.TRANSCRIPTION_MAX_DURATION_SECONDS
+        self.MIN_DURATION_SECONDS = backend_config.TRANSCRIPTION_MIN_DURATION_SECONDS
+
+        # Initialize services
         self.transcription_service = UserTranscriptionService()
         self.audio_service = AudioFileService()
         self.user_service = UserService()
@@ -296,7 +299,7 @@ class SafeAudioProcessor:
                 from decision_data.backend.transcribe.whisper import get_audio_duration, transcribe_from_local
 
                 duration = get_audio_duration(decrypted_file)
-                if duration < 3.0 or duration > 300.0:  # 3 seconds to 5 minutes
+                if duration < self.MIN_DURATION_SECONDS or duration > self.MAX_DURATION_SECONDS:
                     self.transcription_service.update_job_status(job_id, 'failed', f'Audio duration {duration}s outside valid range')
                     return None
 

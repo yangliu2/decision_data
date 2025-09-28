@@ -191,7 +191,7 @@ class UserTranscriptionService:
             try:
                 # Check duration
                 duration = get_audio_duration(decrypted_file)
-                if duration < 3.0 or duration > 300.0:  # 3 seconds to 5 minutes
+                if duration < backend_config.TRANSCRIPTION_MIN_DURATION_SECONDS or duration > backend_config.TRANSCRIPTION_MAX_DURATION_SECONDS:
                     self.update_job_status(job_id, 'failed', f'Audio duration {duration}s outside valid range')
                     return None
 
