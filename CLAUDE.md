@@ -91,12 +91,21 @@ This is a decision data collection system that scrapes stories from Reddit, tran
 
 ### Known Issues
 - DateTime objects have inconsistent saving to MongoDB, causing filtering issues
+- **RESOLVED**: DynamoDB Decimal conversion issues with timestamps (fixed in user_service.py)
 
 ### Deployment & Hosting
 - **Production Environment**: DigitalOcean Droplet (ubuntu-s-1vcpu-512mb-10gb-nyc1-01)
+- **IP Address**: 206.189.185.129
 - **Automated Deployment**: GitHub Actions on push to main branch
 - **Monthly Cost**: ~$4-6 (80% savings vs App Platform)
 - **Deployment Documentation**: `docs/deployment_guide.md`
+- **Implementation Log**: `docs/implementation_log.md` - Complete project history and steps
+
+### Security & Best Practices
+- **SSH Keys**: Ed25519 without passphrase for automated deployment
+- **GitHub Secrets**: Properly configured for CI/CD pipeline
+- **Private Data Isolation**: `docs/private/` folder excluded from git
+- **Git History**: Cleaned of sensitive data (completed September 28, 2025)
 
 ### Project Management & Documentation
 - **Jira Integration**: REST API v3 with Atlassian Document Format (ADF)
