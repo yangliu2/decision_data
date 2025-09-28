@@ -521,21 +521,30 @@ async def transcribe_audio_file(
                 detail=f"File too large ({file_size_mb:.1f}MB). Maximum {max_size}MB allowed."
             )
 
-        # Safety check: Check for existing pending/processing jobs for this file
+        # Check for existing pending/processing jobs for this file
         existing_jobs = transcription_service.get_processing_jobs(current_user_id, 50)
+        existing_job = None
         for job in existing_jobs:
             if (job.audio_file_id == file_id and
-                job.status in ['pending', 'processing'] and
                 job.job_type == 'transcription'):
-                raise HTTPException(
-                    status_code=400,
-                    detail="Transcription already in progress for this file"
-                )
+                if job.status == 'processing':
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Transcription already in progress for this file"
+                    )
+                elif job.status == 'pending':
+                    existing_job = job
+                    break
 
-        # Create and immediately process the job in background
-        job_id = transcription_service.create_processing_job(
-            current_user_id, 'transcription', file_id
-        )
+        # Use existing pending job or create new one
+        if existing_job:
+            job_id = existing_job.job_id
+            print(f"Using existing pending job {job_id} for audio file {file_id}")
+        else:
+            job_id = transcription_service.create_processing_job(
+                current_user_id, 'transcription', file_id
+            )
+            print(f"Created new transcription job {job_id} for audio file {file_id}")
 
         # Add to background processing with user password
         background_tasks.add_task(
