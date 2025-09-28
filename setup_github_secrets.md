@@ -5,11 +5,14 @@
 You need to add these secrets to your GitHub repository:
 
 ### 1. DO_SSH_PRIVATE_KEY
-✅ **Updated with passphrase-free deployment key**
+✅ **Deployment key configured**
 
-Copy this NEW deployment key (no passphrase required):
-```
-```
+**🔐 SECURITY NOTE**: The SSH private key has been moved to a secure location.
+
+**To get the deployment key**:
+1. The key is available locally at `~/.ssh/digitalocean_deploy`
+2. Copy the content: `cat ~/.ssh/digitalocean_deploy`
+3. Or check the `docs/private/` folder (not in git) for backup
 
 ### 2. DO_SSH_USER
 ✅ **Confirmed username: `root`**

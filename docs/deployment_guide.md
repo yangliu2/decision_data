@@ -220,6 +220,11 @@ poetry run uvicorn decision_data.api.backend.api:app --host 0.0.0.0 --port 8000 
 - [ ] Security headers (CORS, CSP)
 - [ ] Regular security updates automation
 
+### Key Security Note
+- ✅ **Private keys are excluded from repository**: SSH keys stored locally and in `docs/private/` (gitignored)
+- ✅ **GitHub Secrets used for CI/CD**: Deployment keys accessed securely via GitHub Actions
+- ✅ **No sensitive data in public repository**: All credentials properly isolated
+
 ## Support and Maintenance
 
 ### Regular Tasks
