@@ -63,3 +63,48 @@ class UserLogin(BaseModel):
 class AudioFileCreate(BaseModel):
     s3_key: str
     file_size: Optional[int] = None
+
+
+class UserPreferences(BaseModel):
+    user_id: str
+    notification_email: str
+    enable_daily_summary: bool = True
+    enable_transcription: bool = True
+    summary_time_utc: str = "09:00"  # Daily summary time in UTC (HH:MM format)
+    created_at: datetime
+    updated_at: datetime
+
+
+class UserPreferencesCreate(BaseModel):
+    notification_email: str
+    enable_daily_summary: Optional[bool] = True
+    enable_transcription: Optional[bool] = True
+    summary_time_utc: Optional[str] = "09:00"
+
+
+class UserPreferencesUpdate(BaseModel):
+    notification_email: Optional[str] = None
+    enable_daily_summary: Optional[bool] = None
+    enable_transcription: Optional[bool] = None
+    summary_time_utc: Optional[str] = None
+
+
+class ProcessingJob(BaseModel):
+    job_id: str
+    user_id: str
+    job_type: str  # "transcription", "daily_summary"
+    audio_file_id: Optional[str] = None  # For transcription jobs
+    status: str  # "pending", "processing", "completed", "failed"
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+
+
+class TranscriptUser(BaseModel):
+    transcript_id: str
+    user_id: str
+    audio_file_id: str
+    transcript: str
+    length_in_seconds: float
+    s3_key: str
+    created_at: datetime

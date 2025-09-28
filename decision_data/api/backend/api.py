@@ -10,13 +10,17 @@ import json
 
 from decision_data.backend.data.reddit import RedditScraper
 from decision_data.data_structure.models import (
-    Story, User, UserCreate, UserLogin, AudioFile, AudioFileCreate
+    Story, User, UserCreate, UserLogin, AudioFile, AudioFileCreate,
+    UserPreferences, UserPreferencesCreate, UserPreferencesUpdate,
+    TranscriptUser, ProcessingJob
 )
 from decision_data.backend.data.save_reddit_posts import (
     save_reddit_story_to_mongo,
 )
 from decision_data.backend.services.user_service import UserService
 from decision_data.backend.services.audio_service import AudioFileService
+from decision_data.backend.services.preferences_service import UserPreferencesService
+from decision_data.backend.services.transcription_service import UserTranscriptionService
 from decision_data.backend.utils.auth import generate_jwt_token, get_current_user
 
 # Initialize rate limiter
@@ -341,3 +345,172 @@ async def delete_audio_file(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to delete audio file")
+
+
+# User Preferences Endpoints
+
+@app.post("/api/user/preferences", response_model=UserPreferences)
+async def create_user_preferences(
+    preferences_data: UserPreferencesCreate,
+    current_user_id: str = Depends(get_current_user)
+):
+    """Create user preferences"""
+    try:
+        preferences_service = UserPreferencesService()
+        preferences = preferences_service.create_preferences(current_user_id, preferences_data)
+
+        if not preferences:
+            raise HTTPException(status_code=409, detail="Preferences already exist")
+
+        return preferences
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create preferences")
+
+
+@app.get("/api/user/preferences", response_model=UserPreferences)
+async def get_user_preferences(
+    current_user_id: str = Depends(get_current_user)
+):
+    """Get user preferences"""
+    try:
+        preferences_service = UserPreferencesService()
+        preferences = preferences_service.get_preferences(current_user_id)
+
+        if not preferences:
+            raise HTTPException(status_code=404, detail="Preferences not found")
+
+        return preferences
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to retrieve preferences")
+
+
+@app.put("/api/user/preferences", response_model=UserPreferences)
+async def update_user_preferences(
+    update_data: UserPreferencesUpdate,
+    current_user_id: str = Depends(get_current_user)
+):
+    """Update user preferences"""
+    try:
+        preferences_service = UserPreferencesService()
+        preferences = preferences_service.update_preferences(current_user_id, update_data)
+
+        if not preferences:
+            raise HTTPException(status_code=404, detail="Preferences not found")
+
+        return preferences
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to update preferences")
+
+
+@app.delete("/api/user/preferences")
+async def delete_user_preferences(
+    current_user_id: str = Depends(get_current_user)
+):
+    """Delete user preferences"""
+    try:
+        preferences_service = UserPreferencesService()
+        success = preferences_service.delete_preferences(current_user_id)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Preferences not found")
+
+        return {"message": "Preferences deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to delete preferences")
+
+
+# Transcription Endpoints
+
+@app.post("/api/transcribe/audio-file/{file_id}")
+@limiter.limit("10/minute")  # Limit transcription requests
+async def transcribe_audio_file(
+    request: Request,
+    file_id: str,
+    current_user_id: str = Depends(get_current_user)
+):
+    """Trigger transcription for a specific audio file"""
+    try:
+        # Note: This endpoint would need user password for decryption
+        # For now, we'll return a job ID and process asynchronously
+        transcription_service = UserTranscriptionService()
+        job_id = transcription_service.create_processing_job(
+            current_user_id, 'transcription', file_id
+        )
+
+        return {
+            "message": "Transcription job created",
+            "job_id": job_id,
+            "status": "pending"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create transcription job")
+
+
+@app.get("/api/user/transcripts", response_model=List[TranscriptUser])
+async def get_user_transcripts(
+    current_user_id: str = Depends(get_current_user),
+    limit: int = Query(50, ge=1, le=100)
+):
+    """Get user's transcripts"""
+    try:
+        transcription_service = UserTranscriptionService()
+        transcripts = transcription_service.get_user_transcripts(current_user_id, limit)
+        return transcripts
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to retrieve transcripts")
+
+
+@app.get("/api/user/processing-jobs", response_model=List[ProcessingJob])
+async def get_user_processing_jobs(
+    current_user_id: str = Depends(get_current_user),
+    limit: int = Query(20, ge=1, le=50)
+):
+    """Get user's processing jobs"""
+    try:
+        transcription_service = UserTranscriptionService()
+        jobs = transcription_service.get_processing_jobs(current_user_id, limit)
+        return jobs
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to retrieve processing jobs")
+
+
+@app.post("/api/user/request-daily-summary")
+@limiter.limit("3/hour")  # Limit daily summary requests
+async def request_daily_summary(
+    request: Request,
+    current_user_id: str = Depends(get_current_user)
+):
+    """Request daily summary generation for user"""
+    try:
+        transcription_service = UserTranscriptionService()
+        job_id = transcription_service.create_processing_job(
+            current_user_id, 'daily_summary'
+        )
+
+        return {
+            "message": "Daily summary job created",
+            "job_id": job_id,
+            "status": "pending"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create daily summary job")
