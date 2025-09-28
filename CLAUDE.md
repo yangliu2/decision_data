@@ -89,6 +89,10 @@ This is a decision data collection system that scrapes stories from Reddit, tran
 - MyPy type checking (Python 3.13)
 - Test coverage reporting via pytest-cov
 
+### Development Notes
+- **IMPORTANT**: When using `find` commands, always exclude `.tox` folder: `find . -path "*/.tox" -prune -o -type f -name "*.py" -print`
+- Tox creates virtual environments that contain many third-party packages and can overwhelm search results
+
 ### Known Issues
 - DateTime objects have inconsistent saving to MongoDB, causing filtering issues
 - **RESOLVED**: DynamoDB Decimal conversion issues with timestamps (fixed in user_service.py)
