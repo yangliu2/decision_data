@@ -105,7 +105,8 @@ class UserTranscriptionService:
             'user_id': user_id,
             'job_type': job_type,
             'status': 'pending',
-            'created_at': now.isoformat()
+            'created_at': now.isoformat(),
+            'retry_count': 0
         }
 
         if audio_file_id:

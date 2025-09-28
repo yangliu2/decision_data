@@ -21,7 +21,10 @@ from decision_data.backend.services.user_service import UserService
 from decision_data.backend.services.audio_service import AudioFileService
 from decision_data.backend.services.preferences_service import UserPreferencesService
 from decision_data.backend.services.transcription_service import UserTranscriptionService
+from decision_data.backend.services.audio_processor import start_background_processor, stop_background_processor
 from decision_data.backend.utils.auth import generate_jwt_token, get_current_user
+import asyncio
+import time
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -40,6 +43,9 @@ app = FastAPI(title="Decision Stories API")
 # Add rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Note: Automatic background processor disabled for now
+# Using manual transcription triggers instead for cost safety
 
 # Security headers middleware
 @app.middleware("http")
@@ -431,34 +437,112 @@ async def delete_user_preferences(
         raise HTTPException(status_code=500, detail="Failed to delete preferences")
 
 
+# Helper function for safe transcription processing
+async def safe_process_transcription(user_id: str, file_id: str, password: str, job_id: str):
+    """Safely process transcription with timeout and error handling."""
+    transcription_service = UserTranscriptionService()
+
+    try:
+        # Set processing status
+        transcription_service.update_job_status(job_id, 'processing')
+
+        # Process with 5-minute timeout to prevent loops
+        start_time = time.time()
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                transcription_service.process_user_audio_file,
+                user_id, file_id, password
+            ),
+            timeout=300  # 5 minutes max
+        )
+
+        processing_time = time.time() - start_time
+
+        if result:
+            logging.info(f"✅ Transcription completed for {file_id} in {processing_time:.1f}s")
+        else:
+            logging.warning(f"⚠️ Transcription completed but no result for {file_id}")
+
+    except asyncio.TimeoutError:
+        transcription_service.update_job_status(
+            job_id, 'failed', 'Processing timeout (5 minutes)'
+        )
+        logging.error(f"⏰ Transcription timeout for {file_id}")
+    except Exception as e:
+        transcription_service.update_job_status(
+            job_id, 'failed', f'Processing error: {str(e)}'
+        )
+        logging.error(f"❌ Transcription failed for {file_id}: {e}")
+
 # Transcription Endpoints
 
+from pydantic import BaseModel
+
+class TranscriptionRequest(BaseModel):
+    password: str
+
 @app.post("/api/transcribe/audio-file/{file_id}")
-@limiter.limit("10/minute")  # Limit transcription requests
+@limiter.limit("5/minute")  # Reduced limit for cost safety
 async def transcribe_audio_file(
     request: Request,
     file_id: str,
+    transcription_request: TranscriptionRequest,
+    background_tasks: BackgroundTasks,
     current_user_id: str = Depends(get_current_user)
 ):
-    """Trigger transcription for a specific audio file"""
+    """Trigger safe transcription for a specific audio file with user password"""
     try:
-        # Note: This endpoint would need user password for decryption
-        # For now, we'll return a job ID and process asynchronously
         transcription_service = UserTranscriptionService()
+        audio_service = AudioFileService()
+
+        # Safety check: Verify audio file exists and belongs to user
+        audio_file = audio_service.get_audio_file_by_id(file_id)
+        if not audio_file or audio_file.user_id != current_user_id:
+            raise HTTPException(status_code=404, detail="Audio file not found")
+
+        # Safety check: File size limit (5MB)
+        file_size_mb = audio_file.file_size / (1024 * 1024)
+        if file_size_mb > 5.0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large ({file_size_mb:.1f}MB). Maximum 5MB allowed."
+            )
+
+        # Safety check: Check for existing pending/processing jobs for this file
+        existing_jobs = transcription_service.get_processing_jobs(current_user_id, 50)
+        for job in existing_jobs:
+            if (job.audio_file_id == file_id and
+                job.status in ['pending', 'processing'] and
+                job.job_type == 'transcription'):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Transcription already in progress for this file"
+                )
+
+        # Create and immediately process the job in background
         job_id = transcription_service.create_processing_job(
             current_user_id, 'transcription', file_id
         )
 
+        # Add to background processing with user password
+        background_tasks.add_task(
+            safe_process_transcription,
+            current_user_id,
+            file_id,
+            transcription_request.password,
+            job_id
+        )
+
         return {
-            "message": "Transcription job created",
+            "message": "Transcription started",
             "job_id": job_id,
-            "status": "pending"
+            "status": "processing"
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to create transcription job")
+        raise HTTPException(status_code=500, detail="Failed to start transcription")
 
 
 @app.get("/api/user/transcripts", response_model=List[TranscriptUser])
