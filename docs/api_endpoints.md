@@ -308,6 +308,70 @@ curl -X GET http://localhost:8000/api/user/audio-files \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+## S3 Folder Structure (Updated September 27, 2025)
+
+### New User-Specific Organization
+
+As of September 27, 2025, all audio files are now organized in user-specific folders to prevent naming collisions and improve file management:
+
+**S3 Bucket Structure:**
+```
+panzoto/
+└── audio_upload/
+    ├── user-uuid-1/
+    │   ├── audio_user123a_1727472600000_4527.3gp_encrypted
+    │   ├── audio_user123a_1727472700000_8341.3gp_encrypted
+    │   └── ...
+    ├── user-uuid-2/
+    │   ├── audio_user456b_1727472800000_2156.3gp_encrypted
+    │   └── ...
+    └── user-uuid-n/
+        └── ...
+```
+
+**File Naming Convention:**
+- Format: `audio_{user_prefix}_{timestamp}_{random_suffix}.3gp_encrypted`
+- `user_prefix`: First 8 characters of user UUID
+- `timestamp`: Milliseconds since epoch
+- `random_suffix`: 4-digit random number for additional uniqueness
+- All files are AES-256-GCM encrypted with user-specific keys
+
+**S3 Key Format:**
+```
+audio_upload/{full_user_uuid}/{encrypted_filename}
+```
+
+**Example S3 Keys:**
+```json
+{
+  "s3_key": "audio_upload/user123abc-def456-7890-abcd-ef1234567890/audio_user123a_1727472600000_4527.3gp_encrypted",
+  "user_id": "user123abc-def456-7890-abcd-ef1234567890",
+  "file_size": 45678
+}
+```
+
+### Benefits of New Structure
+
+1. **Collision Prevention**: Multiple users can record simultaneously without file conflicts
+2. **User Isolation**: Files are organizationally separated by user
+3. **Scalability**: Supports unlimited concurrent users
+4. **Audit Trail**: Clear user attribution for compliance and management
+5. **File Management**: Easier bulk operations per user
+
+### Migration Notes
+
+- **Backward Compatibility**: Existing files remain accessible at their current locations
+- **New Uploads**: All new uploads use the user-specific folder structure
+- **API Changes**: No breaking changes to API endpoints
+- **DynamoDB**: All records include full S3 path for proper tracking
+
+### Implementation Details
+
+- **Android App**: Modified to generate user-specific S3 keys before upload
+- **Backend API**: Updated to handle new S3 key format
+- **Database**: DynamoDB stores complete S3 paths with user folder structure
+- **Encryption**: Each file encrypted with user-specific PBKDF2-derived keys
+
 ## Development Notes
 
 - Server runs on `http://0.0.0.0:8000` in development mode

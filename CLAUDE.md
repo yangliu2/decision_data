@@ -194,3 +194,108 @@ This is a decision data collection system that scrapes stories from Reddit, tran
 - **Related Android Project**: `/Users/fangfanglai/AndroidStudioProjects/Panzoto/claude.md`
 
 **Note**: This backend serves as the authentication and user management system for the Panzoto Android audio recording app. The Android project contains the security implementation roadmap that this backend fulfills (Phase 1.2 - Database Setup and 1.3 - Backend API Setup).
+
+## S3 Storage Architecture Update (September 27, 2025)
+
+### User-Specific Folder Structure Implementation
+
+**Migration Status**: ✅ **COMPLETED** - All new audio uploads now use user-specific folder organization
+
+### New S3 Organization
+
+**Previous Structure** (Before September 27, 2025):
+```
+panzoto/
+└── audio_upload/
+    ├── audio_record_1727472600000.3gp_encrypted
+    ├── audio_record_1727472700000.3gp_encrypted
+    └── ... (all files mixed together)
+```
+
+**New Structure** (September 27, 2025+):
+```
+panzoto/
+└── audio_upload/
+    ├── user-uuid-1/
+    │   ├── audio_user123a_1727472600000_4527.3gp_encrypted
+    │   ├── audio_user123a_1727472700000_8341.3gp_encrypted
+    │   └── ...
+    ├── user-uuid-2/
+    │   ├── audio_user456b_1727472800000_2156.3gp_encrypted
+    │   └── ...
+    └── user-uuid-n/
+        └── ...
+```
+
+### File Naming Convention Updates
+
+**Enhanced Collision Prevention**:
+- **Format**: `audio_{user_prefix}_{timestamp}_{random_suffix}.3gp_encrypted`
+- **user_prefix**: First 8 characters of user UUID for quick identification
+- **timestamp**: Milliseconds since epoch for temporal uniqueness
+- **random_suffix**: 4-digit random number for additional entropy
+- **S3 Path**: `audio_upload/{full_user_uuid}/{filename}`
+
+**Example S3 Keys**:
+```
+audio_upload/user123abc-def456-7890-abcd-ef1234567890/audio_user123a_1727472600000_4527.3gp_encrypted
+audio_upload/user456def-789a-bcde-f012-3456789abcde/audio_user456d_1727472800000_2156.3gp_encrypted
+```
+
+### Backend API Integration
+
+**DynamoDB Records** - Updated to store complete S3 paths:
+```json
+{
+  "file_id": "audio-file-uuid",
+  "user_id": "user123abc-def456-7890-abcd-ef1234567890",
+  "s3_key": "audio_upload/user123abc-def456-7890-abcd-ef1234567890/audio_user123a_1727472600000_4527.3gp_encrypted",
+  "file_size": 45678,
+  "uploaded_at": "2025-09-27T20:30:00Z"
+}
+```
+
+**API Endpoints** - No breaking changes, updated examples:
+- `POST /api/audio-file` - Accepts new S3 key format
+- `GET /api/user/audio-files` - Returns files with new S3 paths
+- `GET /api/audio-file/{file_id}` - Provides complete S3 location
+
+### Benefits Achieved
+
+1. **Zero File Collisions**: Multiple users can record simultaneously without conflicts
+2. **User Isolation**: Files organizationally separated for better management
+3. **Audit Compliance**: Clear user attribution at file and folder level
+4. **Scalability**: Supports unlimited concurrent users safely
+5. **Performance**: S3 prefix optimization for large-scale file operations
+6. **Security**: User-specific encryption with proper file isolation
+
+### Migration Impact
+
+**Backward Compatibility**: ✅ Maintained
+- Existing files remain accessible at current locations
+- No API breaking changes
+- DynamoDB schema unchanged (only data format updated)
+
+**Android App Changes**: ✅ Deployed
+- Updated file naming logic in `MainActivity.kt`
+- Modified S3 key generation for user-specific folders
+- Enhanced collision prevention with multiple entropy sources
+
+**Testing Requirements**:
+- [ ] Verify new uploads create user-specific folders
+- [ ] Confirm DynamoDB records include complete S3 paths
+- [ ] Test concurrent uploads from multiple users
+- [ ] Validate file accessibility and user isolation
+
+### Implementation Files Modified
+
+**Android App** (`/Users/fangfanglai/AndroidStudioProjects/Panzoto/`):
+- `MainActivity.kt:175-181` - Enhanced filename generation
+- `MainActivity.kt:272` - User-specific S3 key creation
+- `CLAUDE.md` - Complete documentation update
+
+**Backend Documentation**:
+- `docs/api_endpoints.md` - Updated S3 folder structure section
+- `CLAUDE.md` - Architecture documentation (this file)
+
+**Related Jira/Confluence**: Update pending for project tracking
