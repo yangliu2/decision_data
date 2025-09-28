@@ -89,6 +89,16 @@ This is a decision data collection system that scrapes stories from Reddit, tran
 - MyPy type checking (Python 3.13)
 - Test coverage reporting via pytest-cov
 
+### Documentation Maintenance Guidelines
+- **IMPORTANT**: Only maintain ONE file per documentation topic in `docs/` folder
+- **Security Documentation**: `docs/security.md` (consolidated - do not create multiple security files)
+- **Architecture Documentation**: `docs/architecture.md` (consolidated - do not create multiple architecture files)
+- **API Documentation**: `docs/api_endpoints.md`
+- **Deployment Documentation**: `docs/deployment_guide.md`
+- **NEVER** create duplicate documentation files with similar names
+- **ALWAYS** update the existing consolidated file rather than creating new ones
+- If documentation becomes too long, use clear section headers within the single file
+
 ### Development Notes
 - **IMPORTANT**: When using `find` commands, always exclude `.tox` folder: `find . -path "*/.tox" -prune -o -type f -name "*.py" -print`
 - Tox creates virtual environments that contain many third-party packages and can overwhelm search results
