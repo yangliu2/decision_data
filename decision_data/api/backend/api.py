@@ -27,6 +27,9 @@ from decision_data.backend.utils.auth import generate_jwt_token, get_current_use
 import asyncio
 import time
 
+# Global background processor task
+background_processor_task = None
+
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
@@ -45,8 +48,46 @@ app = FastAPI(title="Decision Stories API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Note: Automatic background processor disabled for now
-# Using manual transcription triggers instead for cost safety
+# Startup and shutdown events
+@app.on_event("startup")
+async def startup_event():
+    """Start background services on app startup"""
+    global background_processor_task
+    try:
+        logging.info("🚀 Starting Decision Data API...")
+
+        # Start background processor for automatic transcription
+        background_processor_task = asyncio.create_task(start_background_processor())
+        logging.info("✅ Background processor started successfully")
+
+    except Exception as e:
+        logging.error(f"❌ Error starting background services: {e}")
+        # Don't fail startup if background processor fails
+        pass
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean shutdown of background services"""
+    global background_processor_task
+    try:
+        logging.info("🛑 Shutting down Decision Data API...")
+
+        # Stop background processor gracefully
+        if background_processor_task and not background_processor_task.done():
+            stop_background_processor()
+            background_processor_task.cancel()
+            try:
+                await background_processor_task
+            except asyncio.CancelledError:
+                pass
+
+        logging.info("✅ Background services shut down cleanly")
+
+    except Exception as e:
+        logging.error(f"❌ Error during shutdown: {e}")
+
+# Note: Background processor now enabled for automatic transcription processing
+# Manual transcription triggers still available for immediate processing
 
 # Security headers middleware
 @app.middleware("http")
