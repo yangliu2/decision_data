@@ -11,6 +11,7 @@ from loguru import logger
 from decision_data.backend.config.config import backend_config
 from decision_data.data_structure.models import User, UserCreate, UserLogin
 from decision_data.backend.utils.auth import hash_password, verify_password, generate_key_salt
+from decision_data.backend.utils.secrets_manager import secrets_manager
 
 
 class UserService:
@@ -39,6 +40,15 @@ class UserService:
 
             # Convert bytes to base64 string for DynamoDB storage
             key_salt_b64 = base64.b64encode(key_salt).decode('utf-8')
+
+            # Generate and store encryption key in AWS Secrets Manager
+            try:
+                secrets_manager.store_user_encryption_key(user_id)
+                logger.info(f"Created encryption key for user {user_id}")
+            except Exception as e:
+                logger.error(f"Failed to create encryption key for user {user_id}: {e}")
+                # Don't fail user creation if key storage fails
+                # User can still be created, but won't be able to encrypt files yet
 
             self.users_table.put_item(
                 Item={
@@ -98,6 +108,22 @@ class UserService:
         if verify_password(login_data.password, user.password_hash):
             return user
         return None
+
+    def get_user_encryption_key(self, user_id: str) -> Optional[str]:
+        """
+        Get user's encryption key from AWS Secrets Manager.
+
+        Args:
+            user_id: User's UUID
+
+        Returns:
+            Base64-encoded encryption key
+        """
+        try:
+            return secrets_manager.get_user_encryption_key(user_id)
+        except Exception as e:
+            logger.error(f"Failed to retrieve encryption key for user {user_id}: {e}")
+            return None
 
     def _from_dynamodb_item(self, item: dict) -> User:
         """Convert DynamoDB item to User object"""

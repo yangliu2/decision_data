@@ -638,6 +638,41 @@ async def get_user_processing_jobs(
         raise HTTPException(status_code=500, detail="Failed to retrieve processing jobs")
 
 
+@app.get("/api/user/encryption-key")
+async def get_user_encryption_key(
+    current_user_id: str = Depends(get_current_user)
+):
+    """
+    Get user's encryption key for client-side encryption.
+
+    This endpoint provides the server-managed encryption key to authenticated users
+    so they can encrypt audio files before uploading to S3.
+    """
+    try:
+        user_service = UserService()
+        encryption_key = user_service.get_user_encryption_key(current_user_id)
+
+        if not encryption_key:
+            raise HTTPException(
+                status_code=404,
+                detail="Encryption key not found. Please contact support."
+            )
+
+        return {
+            "encryption_key": encryption_key,
+            "user_id": current_user_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve encryption key for user {current_user_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve encryption key"
+        )
+
+
 @app.post("/api/user/request-daily-summary")
 @limiter.limit("3/hour")  # Limit daily summary requests
 async def request_daily_summary(

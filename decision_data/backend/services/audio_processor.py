@@ -255,76 +255,33 @@ class SafeAudioProcessor:
 
     def process_audio_file_automatic(self, user_id: str, audio_file_id: str, user) -> Optional[str]:
         """
-        Process audio file for automatic transcription.
+        Process audio file for automatic transcription using server-managed encryption keys.
 
-        Note: This is a simplified version that assumes we can decrypt automatically.
-        In a real system, you'd need to store server-side encryption keys or
-        use a different encryption approach that allows server-side processing.
+        This method now uses the updated transcription service that handles
+        decryption automatically via AWS Secrets Manager.
+
+        Args:
+            user_id: User's UUID
+            audio_file_id: Audio file UUID to process
+            user: User object (not used anymore, kept for compatibility)
+
+        Returns:
+            Transcript ID if successful, None otherwise
         """
-        job_id = self.transcription_service.create_processing_job(user_id, 'transcription', audio_file_id)
-
+        # Use the updated transcription service method that handles everything
         try:
-            self.transcription_service.update_job_status(job_id, 'processing')
-
-            # Get audio file metadata
-            audio_file = self.audio_service.get_audio_file_by_id(audio_file_id)
-
-            if not audio_file or audio_file.user_id != user_id:
-                self.transcription_service.update_job_status(job_id, 'failed', 'Audio file not found or access denied')
-                return None
-
-            # For automatic processing, we need to handle the fact that
-            # files are encrypted with user password. For now, we'll create jobs
-            # but they'll need user interaction to decrypt.
-            # TODO: Implement server-side encryption keys in the future
-
-            # For now, skip automatic processing and just mark as pending
-            # until we implement server-side keys
-            self.transcription_service.update_job_status(job_id, 'failed', 'Automatic decryption not yet implemented - requires manual trigger')
-            return None
-
-            # Download and decrypt audio file
-            decrypted_file = self.transcription_service.download_and_decrypt_audio(
-                audio_file.s3_key,
-                server_password,
-                user.key_salt
+            transcript_id = self.transcription_service.process_user_audio_file(
+                user_id, audio_file_id
             )
 
-            if not decrypted_file:
-                self.transcription_service.update_job_status(job_id, 'failed', 'Failed to decrypt audio file')
+            if transcript_id:
+                logger.info(f"✅ Automatic processing completed for {audio_file_id}")
+                return transcript_id
+            else:
+                logger.warning(f"⚠️ Automatic processing returned no transcript for {audio_file_id}")
                 return None
 
-            try:
-                # Get audio duration for validation
-                from decision_data.backend.transcribe.whisper import get_audio_duration, transcribe_from_local
-
-                duration = get_audio_duration(decrypted_file)
-                if duration < self.MIN_DURATION_SECONDS or duration > self.MAX_DURATION_SECONDS:
-                    self.transcription_service.update_job_status(job_id, 'failed', f'Audio duration {duration}s outside valid range')
-                    return None
-
-                # Transcribe audio
-                transcript = transcribe_from_local(decrypted_file)
-
-                if not transcript or len(transcript.strip()) < 10:
-                    self.transcription_service.update_job_status(job_id, 'failed', 'Transcription failed or too short')
-                    return None
-
-                # Save transcript to database
-                transcript_id = self.transcription_service.save_transcript_to_db(
-                    user_id, audio_file_id, transcript, duration, audio_file.s3_key
-                )
-
-                self.transcription_service.update_job_status(job_id, 'completed')
-                return transcript_id
-
-            finally:
-                # Clean up decrypted file
-                if decrypted_file.exists():
-                    decrypted_file.unlink()
-
         except Exception as e:
-            self.transcription_service.update_job_status(job_id, 'failed', str(e))
             logger.error(f"❌ Automatic processing failed for {audio_file_id}: {e}")
             return None
 

@@ -10,12 +10,14 @@ from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Hash import SHA256
 import io
 import tempfile
+import base64
 from botocore.exceptions import ClientError
 
 from decision_data.backend.config.config import backend_config
 from decision_data.backend.transcribe.whisper import transcribe_from_local, get_audio_duration
 from decision_data.backend.services.audio_service import AudioFileService
 from decision_data.backend.services.user_service import UserService
+from decision_data.backend.utils.secrets_manager import secrets_manager
 from decision_data.data_structure.models import (
     TranscriptUser,
     ProcessingJob,
@@ -43,17 +45,20 @@ class UserTranscriptionService:
         self.transcripts_table = self.dynamodb.Table('panzoto-transcripts')
         self.jobs_table = self.dynamodb.Table('panzoto-processing-jobs')
 
-    def decrypt_audio_file(self, encrypted_data: bytes, user_password: str, salt: str) -> bytes:
-        """Decrypt audio file using user's password and salt."""
+    def decrypt_audio_file(self, encrypted_data: bytes, encryption_key_b64: str) -> bytes:
+        """
+        Decrypt audio file using server-managed encryption key.
+
+        Args:
+            encrypted_data: Encrypted audio data (IV + ciphertext + tag)
+            encryption_key_b64: Base64-encoded 256-bit encryption key
+
+        Returns:
+            Decrypted audio data
+        """
         try:
-            # Derive key using PBKDF2 (same as Android app)
-            key = PBKDF2(
-                user_password.encode('utf-8'),
-                salt.encode('utf-8'),
-                32,  # 256-bit key
-                count=100000,
-                hmac_hash_module=SHA256
-            )
+            # Decode the encryption key from base64
+            key = base64.b64decode(encryption_key_b64)
 
             # Extract IV from the first 16 bytes
             iv = encrypted_data[:16]
@@ -70,15 +75,30 @@ class UserTranscriptionService:
             print(f"Error decrypting audio file: {e}")
             raise
 
-    def download_and_decrypt_audio(self, s3_key: str, user_password: str, salt: str) -> Optional[Path]:
-        """Download encrypted audio from S3 and decrypt it."""
+    def download_and_decrypt_audio(self, s3_key: str, user_id: str) -> Optional[Path]:
+        """
+        Download encrypted audio from S3 and decrypt it using server-managed key.
+
+        Args:
+            s3_key: S3 object key for the encrypted audio file
+            user_id: User UUID to retrieve encryption key
+
+        Returns:
+            Path to decrypted temporary file, or None on failure
+        """
         try:
+            # Get user's encryption key from Secrets Manager
+            encryption_key = secrets_manager.get_user_encryption_key(user_id)
+            if not encryption_key:
+                print(f"Encryption key not found for user {user_id}")
+                return None
+
             # Download encrypted file from S3
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
             encrypted_data = response['Body'].read()
 
             # Decrypt the data
-            decrypted_data = self.decrypt_audio_file(encrypted_data, user_password, salt)
+            decrypted_data = self.decrypt_audio_file(encrypted_data, encryption_key)
 
             # Save decrypted data to temporary file
             temp_dir = Path("data/processing_audio")
@@ -155,8 +175,20 @@ class UserTranscriptionService:
         self.transcripts_table.put_item(Item=item)
         return transcript_id
 
-    def process_user_audio_file(self, user_id: str, audio_file_id: str, user_password: str) -> Optional[str]:
-        """Process a single audio file for transcription."""
+    def process_user_audio_file(self, user_id: str, audio_file_id: str) -> Optional[str]:
+        """
+        Process a single audio file for transcription.
+
+        This method now uses server-managed encryption keys, allowing automatic processing
+        without requiring the user's password.
+
+        Args:
+            user_id: User's UUID
+            audio_file_id: Audio file UUID to process
+
+        Returns:
+            Transcript ID if successful, None otherwise
+        """
         job_id = self.create_processing_job(user_id, 'transcription', audio_file_id)
 
         try:
@@ -170,18 +202,10 @@ class UserTranscriptionService:
                 self.update_job_status(job_id, 'failed', 'Audio file not found or access denied')
                 return None
 
-            # Get user salt for decryption
-            user_service = UserService()
-            user = user_service.get_user_by_id(user_id)
-            if not user:
-                self.update_job_status(job_id, 'failed', 'User not found')
-                return None
-
-            # Download and decrypt audio file
+            # Download and decrypt audio file (now uses server-managed key)
             decrypted_file = self.download_and_decrypt_audio(
                 audio_file.s3_key,
-                user_password,
-                user.key_salt
+                user_id
             )
 
             if not decrypted_file:
