@@ -253,7 +253,7 @@ class SafeAudioProcessor:
         except Exception:
             return None
 
-    def process_audio_file_automatic(self, user_id: str, audio_file_id: str, user) -> Optional[str]:
+    def process_audio_file_automatic(self, user_id: str, audio_file_id: str, user=None) -> Optional[str]:
         """
         Process audio file for automatic transcription using server-managed encryption keys.
 
@@ -263,7 +263,7 @@ class SafeAudioProcessor:
         Args:
             user_id: User's UUID
             audio_file_id: Audio file UUID to process
-            user: User object (not used anymore, kept for compatibility)
+            user: User object (DEPRECATED - not used, kept for backward compatibility)
 
         Returns:
             Transcript ID if successful, None otherwise
