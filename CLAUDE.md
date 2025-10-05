@@ -505,21 +505,86 @@ coroutineScope.launch(Dispatchers.IO) {
 - **DynamoDB Migration**: `docs/dynamodb_migration_guide.md`
 - **Deployment Guide**: `docs/deployment_guide.md`
 
+## Server-Side Encryption Architecture (October 5, 2025)
+
+### ✅ **COMPLETED**: Migration to AWS Secrets Manager
+
+**Status**: 🟢 **DEPLOYED TO PRODUCTION**
+**Documentation**: `docs/server_side_encryption_implementation.md`
+
+#### Problem Solved
+- **Issue**: All recordings stuck in pending/processing/failed status
+- **Root Cause**: Background processor couldn't decrypt files without user passwords
+- **Solution**: Server-managed encryption keys in AWS Secrets Manager
+
+#### Architecture Changes
+
+**Before (Password-Based Encryption)**:
+```
+User Password + Salt → PBKDF2 → Encryption Key
+Server: ❌ No access to password → Cannot decrypt automatically
+```
+
+**After (Server-Managed Keys)**:
+```
+User Password → Argon2 Hash → DynamoDB (authentication only)
+Server Key → AWS Secrets Manager → Encryption Key → Auto-transcription ✅
+```
+
+#### Security Benefits
+- ✅ **Password Never Leaves Device**: Stored only on Android, never sent for encryption
+- ✅ **Separation of Concerns**: Authentication vs encryption keys are independent
+- ✅ **Key Rotation**: Can rotate encryption keys without password changes
+- ✅ **Audit Trail**: AWS CloudTrail logs all key access
+- ✅ **Automatic Processing**: Enables transcription without user interaction
+
+#### Implementation Files
+- **Backend**:
+  - `backend/utils/secrets_manager.py` (new) - AWS Secrets Manager integration
+  - `backend/services/user_service.py` - Auto-generate keys on registration
+  - `backend/services/transcription_service.py` - Use server keys for decryption
+  - `backend/services/audio_processor.py` - Enable automatic processing
+  - `api/backend/api.py` - New endpoint: `GET /api/user/encryption-key`
+
+- **Android** (not committed to this repo):
+  - `service/AuthService.kt` - Fetch encryption keys after login
+  - `FileEncryptor.kt` - Use base64 server keys instead of PBKDF2
+  - `MainActivity.kt` - Encrypt with server keys before upload
+  - `viewmodel/AuthViewModel.kt` - Provide encryption key accessor
+  - `data/AuthModels.kt` - Add EncryptionKeyResponse model
+
+#### Migration Notes
+- **New users**: Encryption keys created automatically on registration
+- **Existing users**: Require re-login to fetch encryption keys
+- **Old files**: Encrypted with password-based method still accessible (backward compatible)
+- **Cost**: AWS Secrets Manager ~$0.40/user/month + minimal API costs
+
+#### Related Documentation
+- **Full Implementation Guide**: `docs/server_side_encryption_implementation.md`
+- **API Endpoints**: `docs/api_endpoints.md` (updated with encryption key endpoint)
+- **Security Architecture**: `docs/security.md` (updated with new threat model)
+
+---
+
 ## 📋 Current Work & Next Steps
 
 ### ✅ Recently Completed
-- Multi-user audio processing system with complete user isolation
-- Android Settings and Processing screens with proper threading
-- Production deployment with automated CI/CD pipeline
-- NetworkOnMainThreadException fixes and documentation
+- ✅ **Server-side encryption migration** - October 5, 2025
+- ✅ **Automatic transcription enabled** - Background processor fully functional
+- ✅ Multi-user audio processing system with complete user isolation
+- ✅ Android Settings and Processing screens with proper threading
+- ✅ Production deployment with automated CI/CD pipeline
+- ✅ NetworkOnMainThreadException fixes and documentation
 
 ### 🔄 Current Focus
-- Monitor production system performance and user feedback
-- Optimize audio processing pipeline for larger scale
+- Monitor automatic transcription success rate
+- Track AWS Secrets Manager costs and usage
+- Migrate existing users to new encryption system
 
 ### 🚀 Next Up (GitHub Issues)
 - [ ] Batch transcript processing for efficiency
-- [ ] Redis caching for user preferences
+- [ ] Redis caching for encryption keys (reduce Secrets Manager API calls)
 - [ ] Transcript search and filtering features
 - [ ] Email template customization
-- [ ] CloudWatch monitoring setup
+- [ ] CloudWatch monitoring for transcription pipeline
+- [ ] Key rotation mechanism for enhanced security

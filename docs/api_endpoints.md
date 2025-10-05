@@ -71,6 +71,8 @@ POST /api/register
 - `409`: User already exists
 - `500`: Registration failed
 
+**Note**: Registration automatically generates a server-side encryption key stored in AWS Secrets Manager for the user.
+
 ### User Login
 ```http
 POST /api/login
@@ -103,6 +105,41 @@ POST /api/login
 **Error Responses**:
 - `401`: Invalid email or password
 - `500`: Login failed
+
+### Get User Encryption Key
+```http
+GET /api/user/encryption-key
+```
+**Description**: Retrieve server-managed encryption key for authenticated user
+**Authentication**: Required
+**Added**: October 5, 2025 (Server-side encryption migration)
+
+**Response** (200 OK):
+```json
+{
+  "encryption_key": "base64-encoded-256-bit-key",
+  "user_id": "uuid-string"
+}
+```
+
+**Usage**:
+- Android app fetches this key after login/registration
+- Key is cached locally in DataStore for file encryption
+- Used for AES-256-GCM encryption before S3 upload
+- Server uses same key for automatic decryption during transcription
+
+**Security**:
+- Requires valid JWT token
+- Only returns the requesting user's key
+- Key never logged or cached server-side
+- HTTPS required in production
+
+**Error Responses**:
+- `401`: Not authenticated / Invalid token
+- `404`: Encryption key not found (contact support)
+- `500`: Failed to retrieve encryption key
+
+**Related Documentation**: See `docs/server_side_encryption_implementation.md`
 
 ## Audio File Management Endpoints
 
