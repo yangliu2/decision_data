@@ -10,17 +10,21 @@ from loguru import logger
 
 from decision_data.backend.config.config import backend_config
 from decision_data.data_structure.models import User, UserCreate, UserLogin
-from decision_data.backend.utils.auth import hash_password, verify_password, generate_key_salt
+from decision_data.backend.utils.auth import (
+    hash_password,
+    verify_password,
+    generate_key_salt,
+)
 from decision_data.backend.utils.secrets_manager import secrets_manager
 
 
 class UserService:
     def __init__(self):
         self.dynamodb = boto3.resource(
-            'dynamodb',
+            "dynamodb",
             region_name=backend_config.REGION_NAME,
             aws_access_key_id=backend_config.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=backend_config.AWS_SECRET_ACCESS_KEY
+            aws_secret_access_key=backend_config.AWS_SECRET_ACCESS_KEY,
         )
         self.users_table = self.dynamodb.Table(backend_config.USERS_TABLE)
 
@@ -39,7 +43,7 @@ class UserService:
             created_at = datetime.utcnow()
 
             # Convert bytes to base64 string for DynamoDB storage
-            key_salt_b64 = base64.b64encode(key_salt).decode('utf-8')
+            key_salt_b64 = base64.b64encode(key_salt).decode("utf-8")
 
             # Generate and store encryption key in AWS Secrets Manager
             try:
@@ -52,12 +56,12 @@ class UserService:
 
             self.users_table.put_item(
                 Item={
-                    'user_id': user_id,
-                    'email': user_data.email.lower().strip(),
-                    'password_hash': password_hash,
-                    'key_salt': key_salt_b64,
-                    'created_at': int(created_at.timestamp()),
-                    'created_at_iso': created_at.isoformat()
+                    "user_id": user_id,
+                    "email": user_data.email.lower().strip(),
+                    "password_hash": password_hash,
+                    "key_salt": key_salt_b64,
+                    "created_at": int(created_at.timestamp()),
+                    "created_at_iso": created_at.isoformat(),
                 }
             )
 
@@ -66,7 +70,7 @@ class UserService:
                 email=user_data.email.lower().strip(),
                 password_hash=password_hash,
                 key_salt=key_salt.hex(),
-                created_at=created_at
+                created_at=created_at,
             )
 
         except ClientError as e:
@@ -76,9 +80,9 @@ class UserService:
     def get_user_by_id(self, user_id: str) -> Optional[User]:
         """Get user by ID"""
         try:
-            response = self.users_table.get_item(Key={'user_id': user_id})
-            if 'Item' in response:
-                return self._from_dynamodb_item(response['Item'])
+            response = self.users_table.get_item(Key={"user_id": user_id})
+            if "Item" in response:
+                return self._from_dynamodb_item(response["Item"])
             return None
         except ClientError as e:
             logger.error(f"Error getting user by ID: {e}")
@@ -88,12 +92,12 @@ class UserService:
         """Get user by email using GSI"""
         try:
             response = self.users_table.query(
-                IndexName='email-index',
-                KeyConditionExpression='email = :email',
-                ExpressionAttributeValues={':email': email.lower().strip()}
+                IndexName="email-index",
+                KeyConditionExpression="email = :email",
+                ExpressionAttributeValues={":email": email.lower().strip()},
             )
-            if response['Items']:
-                return self._from_dynamodb_item(response['Items'][0])
+            if response["Items"]:
+                return self._from_dynamodb_item(response["Items"][0])
             return None
         except ClientError as e:
             logger.error(f"Error getting user by email: {e}")
@@ -128,15 +132,17 @@ class UserService:
     def _from_dynamodb_item(self, item: dict) -> User:
         """Convert DynamoDB item to User object"""
         # Convert base64 string back to bytes, then to hex
-        key_salt = base64.b64decode(item['key_salt']).hex() if item.get('key_salt') else None
+        key_salt = (
+            base64.b64decode(item["key_salt"]).hex() if item.get("key_salt") else None
+        )
         # Handle Decimal objects from DynamoDB
-        created_at_timestamp = float(item.get('created_at', 0))
+        created_at_timestamp = float(item.get("created_at", 0))
         created_at = datetime.fromtimestamp(created_at_timestamp)
 
         return User(
-            user_id=item['user_id'],
-            email=item['email'],
-            password_hash=item.get('password_hash'),
+            user_id=item["user_id"],
+            email=item["email"],
+            password_hash=item.get("password_hash"),
             key_salt=key_salt,
-            created_at=created_at
+            created_at=created_at,
         )

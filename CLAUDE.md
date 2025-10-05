@@ -124,6 +124,9 @@ This is a decision data collection system that scrapes stories from Reddit, tran
 - **GitHub Issues**: Track bugs and feature requests
 - **Markdown Documentation**: In-repo documentation for architecture and progress
 - **Git Commits**: Detailed commit messages for tracking changes
+- **Utility Scripts**: `decision_data/scripts/` - One-off maintenance and debugging scripts
+  - See `decision_data/scripts/README.md` for script inventory and usage
+  - All new utility scripts should be placed in this directory
 
 # Current Progress
 
