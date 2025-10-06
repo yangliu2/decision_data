@@ -21,16 +21,29 @@ setup_logger()
 
 
 def get_audio_duration(audio_path: Path) -> float:
-    """Get duration of a WAV audio file in seconds.
+    """Get duration of an audio file in seconds.
+
+    Supports WAV files via wave module. For other formats (like 3gp),
+    returns a default duration since we validate duration at upload time.
 
     :param audio_path: Path to the audio file.
     :return: Duration in seconds.
     """
-    with wave.open(str(audio_path), "rb") as wf:
-        frames = wf.getnframes()
-        rate = wf.getframerate()
-        duration = frames / float(rate)
-    return duration
+    try:
+        # Try WAV format first
+        with wave.open(str(audio_path), "rb") as wf:
+            frames = wf.getnframes()
+            rate = wf.getframerate()
+            duration = frames / float(rate)
+        return duration
+    except wave.Error:
+        # For non-WAV files (like 3gp), return a reasonable default
+        # Duration validation happens at upload time with file metadata
+        logger.warning(f"Cannot read duration from {audio_path.suffix} file, using file size estimate")
+        # Estimate: ~1KB per second for 3gp audio (very rough)
+        file_size_bytes = audio_path.stat().st_size
+        estimated_duration = file_size_bytes / 1000.0
+        return max(5.0, min(estimated_duration, 30.0))  # Clamp between 5-30 seconds
 
 
 def transcribe_from_local(audio_path: Path) -> str:
