@@ -504,7 +504,7 @@ async def safe_process_transcription(user_id: str, file_id: str, password: str, 
         result = await asyncio.wait_for(
             asyncio.to_thread(
                 transcription_service.process_user_audio_file,
-                user_id, file_id, password
+                user_id, file_id
             ),
             timeout=300  # 5 minutes max
         )
