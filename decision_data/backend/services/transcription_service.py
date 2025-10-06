@@ -184,22 +184,19 @@ class UserTranscriptionService:
         self.transcripts_table.put_item(Item=item)
         return transcript_id
 
-    def process_user_audio_file(self, user_id: str, audio_file_id: str) -> Optional[str]:
+    def process_audio_for_existing_job(self, job_id: str, user_id: str, audio_file_id: str) -> Optional[str]:
         """
-        Process a single audio file for transcription.
-
-        This method now uses server-managed encryption keys, allowing automatic processing
-        without requiring the user's password.
+        Process audio file using an EXISTING job (no duplicate job creation).
+        Used by background processor.
 
         Args:
+            job_id: Existing job ID to update
             user_id: User's UUID
             audio_file_id: Audio file UUID to process
 
         Returns:
             Transcript ID if successful, None otherwise
         """
-        job_id = self.create_processing_job(user_id, 'transcription', audio_file_id)
-
         try:
             self.update_job_status(job_id, 'processing')
 
@@ -251,6 +248,21 @@ class UserTranscriptionService:
         except Exception as e:
             self.update_job_status(job_id, 'failed', str(e))
             return None
+
+    def process_user_audio_file(self, user_id: str, audio_file_id: str) -> Optional[str]:
+        """
+        Process a single audio file for transcription.
+        Creates a NEW job (for manual triggering).
+
+        Args:
+            user_id: User's UUID
+            audio_file_id: Audio file UUID to process
+
+        Returns:
+            Transcript ID if successful, None otherwise
+        """
+        job_id = self.create_processing_job(user_id, 'transcription', audio_file_id)
+        return self.process_audio_for_existing_job(job_id, user_id, audio_file_id)
 
     def get_user_transcripts(self, user_id: str, limit: int = 50) -> list[TranscriptUser]:
         """Get user's transcripts."""

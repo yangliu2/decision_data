@@ -197,7 +197,7 @@ class SafeAudioProcessor:
             transcript_id = await asyncio.wait_for(
                 asyncio.to_thread(
                     self.process_audio_file_automatic,
-                    user_id, audio_file_id
+                    job_id, user_id, audio_file_id
                 ),
                 timeout=self.PROCESSING_TIMEOUT_MINUTES * 60
             )
@@ -255,24 +255,22 @@ class SafeAudioProcessor:
         except Exception:
             return None
 
-    def process_audio_file_automatic(self, user_id: str, audio_file_id: str) -> Optional[str]:
+    def process_audio_file_automatic(self, job_id: str, user_id: str, audio_file_id: str) -> Optional[str]:
         """
         Process audio file for automatic transcription using server-managed encryption keys.
-
-        This method now uses the updated transcription service that handles
-        decryption automatically via AWS Secrets Manager.
+        Uses existing job (no duplicate creation).
 
         Args:
+            job_id: Existing job ID to update
             user_id: User's UUID
             audio_file_id: Audio file UUID to process
 
         Returns:
             Transcript ID if successful, None otherwise
         """
-        # Use the updated transcription service method that handles everything
         try:
-            transcript_id = self.transcription_service.process_user_audio_file(
-                user_id, audio_file_id
+            transcript_id = self.transcription_service.process_audio_for_existing_job(
+                job_id, user_id, audio_file_id
             )
 
             if transcript_id:
