@@ -29,33 +29,33 @@ def check_table_status():
         table_status = response['Table']['TableStatus']
         item_count = response['Table']['ItemCount']
 
-        print(f"📊 Table Status: {table_status}")
-        print(f"📊 Item Count: {item_count}")
-        print(f"📊 Table Size: {response['Table']['TableSizeBytes']} bytes")
+        print(f"[STATS] Table Status: {table_status}")
+        print(f"[STATS] Item Count: {item_count}")
+        print(f"[STATS] Table Size: {response['Table']['TableSizeBytes']} bytes")
 
         return table
 
     except ClientError as e:
         if e.response['Error']['Code'] == 'ResourceNotFoundException':
-            print("❌ Table 'panzoto-processing-jobs' does not exist!")
+            print("[ERROR] Table 'panzoto-processing-jobs' does not exist!")
             return None
         else:
-            print(f"❌ Error accessing table: {e}")
+            print(f"[ERROR] Error accessing table: {e}")
             return None
 
 def scan_all_jobs(table):
     """Scan all jobs in the table."""
     try:
-        print("\n🔍 Scanning all jobs in panzoto-processing-jobs table...")
+        print("\n[SEARCH] Scanning all jobs in panzoto-processing-jobs table...")
 
         response = table.scan()
         jobs = response['Items']
 
         if not jobs:
-            print("❌ No jobs found in the table!")
+            print("[ERROR] No jobs found in the table!")
             return
 
-        print(f"✅ Found {len(jobs)} jobs total")
+        print(f"[OK] Found {len(jobs)} jobs total")
 
         # Group jobs by status
         status_counts = {}
@@ -63,12 +63,12 @@ def scan_all_jobs(table):
             status = job.get('status', 'unknown')
             status_counts[status] = status_counts.get(status, 0) + 1
 
-        print("\n📈 Jobs by Status:")
+        print("\n[CHART] Jobs by Status:")
         for status, count in status_counts.items():
             print(f"  {status}: {count}")
 
         # Show recent jobs
-        print("\n📋 Recent Jobs (last 10):")
+        print("\n[INFO] Recent Jobs (last 10):")
         # Sort by created_at if available
         sorted_jobs = sorted(jobs, key=lambda x: x.get('created_at', ''), reverse=True)
 
@@ -89,7 +89,7 @@ def scan_all_jobs(table):
         return jobs
 
     except Exception as e:
-        print(f"❌ Error scanning jobs: {e}")
+        print(f"[ERROR] Error scanning jobs: {e}")
         return []
 
 def check_pending_jobs(table):
@@ -106,10 +106,10 @@ def check_pending_jobs(table):
         pending_jobs = response['Items']
 
         if not pending_jobs:
-            print("❌ No pending jobs found - this might explain why no transcription buttons appear!")
+            print("[ERROR] No pending jobs found - this might explain why no transcription buttons appear!")
             return
 
-        print(f"✅ Found {len(pending_jobs)} pending jobs")
+        print(f"[OK] Found {len(pending_jobs)} pending jobs")
 
         for job in pending_jobs:
             print(f"\n  Pending Job:")
@@ -121,12 +121,12 @@ def check_pending_jobs(table):
                 print(f"    Audio File: {job['audio_file_id']}")
 
     except Exception as e:
-        print(f"❌ Error checking pending jobs: {e}")
+        print(f"[ERROR] Error checking pending jobs: {e}")
 
 def check_failed_jobs(table):
     """Check for failed jobs that might need attention."""
     try:
-        print("\n❌ Checking for failed jobs...")
+        print("\n[ERROR] Checking for failed jobs...")
 
         response = table.scan(
             FilterExpression='#status = :status',
@@ -137,10 +137,10 @@ def check_failed_jobs(table):
         failed_jobs = response['Items']
 
         if not failed_jobs:
-            print("✅ No failed jobs found")
+            print("[OK] No failed jobs found")
             return
 
-        print(f"❌ Found {len(failed_jobs)} failed jobs")
+        print(f"[ERROR] Found {len(failed_jobs)} failed jobs")
 
         # Group by error message
         error_counts = {}
@@ -148,12 +148,12 @@ def check_failed_jobs(table):
             error = job.get('error_message', 'Unknown error')
             error_counts[error] = error_counts.get(error, 0) + 1
 
-        print("\n📊 Failed Jobs by Error Type:")
+        print("\n[STATS] Failed Jobs by Error Type:")
         for error, count in error_counts.items():
             print(f"  '{error}': {count} jobs")
 
         # Show recent failures
-        print("\n📋 Recent Failed Jobs (last 5):")
+        print("\n[INFO] Recent Failed Jobs (last 5):")
         sorted_failed = sorted(failed_jobs, key=lambda x: x.get('created_at', ''), reverse=True)
 
         for i, job in enumerate(sorted_failed[:5]):
@@ -167,7 +167,7 @@ def check_failed_jobs(table):
                 print(f"    Audio File: {job['audio_file_id']}")
 
     except Exception as e:
-        print(f"❌ Error checking failed jobs: {e}")
+        print(f"[ERROR] Error checking failed jobs: {e}")
 
 def check_processing_jobs(table):
     """Check for jobs currently in processing state."""
@@ -183,7 +183,7 @@ def check_processing_jobs(table):
         processing_jobs = response['Items']
 
         if not processing_jobs:
-            print("✅ No jobs currently processing")
+            print("[OK] No jobs currently processing")
             return
 
         print(f"⚙️ Found {len(processing_jobs)} jobs in processing state")
@@ -206,16 +206,16 @@ def check_processing_jobs(table):
                     print(f"    Processing Duration: {duration}")
 
                     if duration.total_seconds() > 3600:  # More than 1 hour
-                        print("    ⚠️ WARNING: Job has been processing for more than 1 hour!")
+                        print("    [WARN] WARNING: Job has been processing for more than 1 hour!")
                 except:
                     pass
 
     except Exception as e:
-        print(f"❌ Error checking processing jobs: {e}")
+        print(f"[ERROR] Error checking processing jobs: {e}")
 
 def main():
     """Main function to check the DynamoDB table state."""
-    print("🔍 Checking panzoto-processing-jobs DynamoDB table state...")
+    print("[SEARCH] Checking panzoto-processing-jobs DynamoDB table state...")
     print("=" * 60)
 
     # Check table status

@@ -24,7 +24,7 @@ def cleanup_processing_jobs():
 
     jobs_table = dynamodb.Table('panzoto-processing-jobs')
 
-    print("🔍 Scanning panzoto-processing-jobs table...")
+    print("[SEARCH] Scanning panzoto-processing-jobs table...")
 
     try:
         # Scan all items
@@ -36,10 +36,10 @@ def cleanup_processing_jobs():
             response = jobs_table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
             items.extend(response['Items'])
 
-        print(f"📊 Found {len(items)} processing jobs")
+        print(f"[STATS] Found {len(items)} processing jobs")
 
         if len(items) == 0:
-            print("✅ Table is already empty!")
+            print("[OK] Table is already empty!")
             return
 
         # Show breakdown by status
@@ -48,20 +48,20 @@ def cleanup_processing_jobs():
             status = item.get('status', 'unknown')
             status_counts[status] = status_counts.get(status, 0) + 1
 
-        print("\n📈 Jobs by status:")
+        print("\n[CHART] Jobs by status:")
         for status, count in status_counts.items():
             print(f"   {status}: {count}")
 
         # Confirm deletion
-        print(f"\n⚠️  About to DELETE {len(items)} processing jobs")
+        print(f"\n[WARN]  About to DELETE {len(items)} processing jobs")
         confirm = input("Type 'DELETE' to confirm: ")
 
         if confirm != 'DELETE':
-            print("❌ Cancelled - no changes made")
+            print("[ERROR] Cancelled - no changes made")
             return
 
         # Delete all items
-        print("\n🗑️  Deleting items...")
+        print("\n[DELETE]  Deleting items...")
         deleted_count = 0
 
         with jobs_table.batch_writer() as batch:
@@ -71,21 +71,21 @@ def cleanup_processing_jobs():
                 if deleted_count % 10 == 0:
                     print(f"   Deleted {deleted_count}/{len(items)}...")
 
-        print(f"\n✅ Successfully deleted {deleted_count} processing jobs!")
+        print(f"\n[OK] Successfully deleted {deleted_count} processing jobs!")
 
         # Verify deletion
         verify_response = jobs_table.scan()
         remaining = len(verify_response['Items'])
 
         if remaining == 0:
-            print("✅ Verification: Table is now empty")
+            print("[OK] Verification: Table is now empty")
         else:
-            print(f"⚠️  Warning: {remaining} items still remain")
+            print(f"[WARN]  Warning: {remaining} items still remain")
 
     except ClientError as e:
-        print(f"❌ Error: {e.response['Error']['Message']}")
+        print(f"[ERROR] Error: {e.response['Error']['Message']}")
     except Exception as e:
-        print(f"❌ Unexpected error: {str(e)}")
+        print(f"[ERROR] Unexpected error: {str(e)}")
 
 
 def cleanup_transcripts():
@@ -98,7 +98,7 @@ def cleanup_transcripts():
     cleanup_transcripts_too = input("\nDo you also want to delete all transcripts? (yes/no): ")
 
     if cleanup_transcripts_too.lower() != 'yes':
-        print("⏭️  Skipping transcript cleanup")
+        print("[SKIP]  Skipping transcript cleanup")
         return
 
     # Initialize DynamoDB
@@ -111,7 +111,7 @@ def cleanup_transcripts():
 
     transcripts_table = dynamodb.Table('panzoto-transcripts')
 
-    print("🔍 Scanning panzoto-transcripts table...")
+    print("[SEARCH] Scanning panzoto-transcripts table...")
 
     try:
         response = transcripts_table.scan()
@@ -121,20 +121,20 @@ def cleanup_transcripts():
             response = transcripts_table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
             items.extend(response['Items'])
 
-        print(f"📊 Found {len(items)} transcripts")
+        print(f"[STATS] Found {len(items)} transcripts")
 
         if len(items) == 0:
-            print("✅ Transcripts table is already empty!")
+            print("[OK] Transcripts table is already empty!")
             return
 
-        print(f"\n⚠️  About to DELETE {len(items)} transcripts")
+        print(f"\n[WARN]  About to DELETE {len(items)} transcripts")
         confirm = input("Type 'DELETE' to confirm: ")
 
         if confirm != 'DELETE':
-            print("❌ Cancelled - transcripts preserved")
+            print("[ERROR] Cancelled - transcripts preserved")
             return
 
-        print("\n🗑️  Deleting transcripts...")
+        print("\n[DELETE]  Deleting transcripts...")
         deleted_count = 0
 
         with transcripts_table.batch_writer() as batch:
@@ -144,12 +144,12 @@ def cleanup_transcripts():
                 if deleted_count % 10 == 0:
                     print(f"   Deleted {deleted_count}/{len(items)}...")
 
-        print(f"\n✅ Successfully deleted {deleted_count} transcripts!")
+        print(f"\n[OK] Successfully deleted {deleted_count} transcripts!")
 
     except ClientError as e:
-        print(f"❌ Error: {e.response['Error']['Message']}")
+        print(f"[ERROR] Error: {e.response['Error']['Message']}")
     except Exception as e:
-        print(f"❌ Unexpected error: {str(e)}")
+        print(f"[ERROR] Unexpected error: {str(e)}")
 
 
 if __name__ == "__main__":
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     auto_confirm = '--auto' in sys.argv or '-y' in sys.argv
 
     if auto_confirm:
-        print("🤖 Running in AUTO mode (no confirmations)")
+        print("[AUTO] Running in AUTO mode (no confirmations)")
 
     # Override input function if auto mode
     if auto_confirm:

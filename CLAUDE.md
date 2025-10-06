@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Code Style Guidelines
+
+**IMPORTANT: NO EMOJIS IN CODE**
+- Never use emojis in any code files (.py, .js, .kt, etc.)
+- Use plain text markers instead: [OK], [ERROR], [WARN], [INFO], [START], [STOP], etc.
+- Emojis are acceptable ONLY in documentation files (.md) if explicitly requested by user
+
 ## Project Overview
 
 This is a decision data collection system that scrapes stories from Reddit, transcribes audio content using AWS services, and provides an API to access decision-making stories. The system uses FastAPI for the backend, MongoDB for data storage, and AWS S3/DynamoDB for file storage and metadata.

@@ -73,7 +73,7 @@ class UserTranscriptionService:
 
         except Exception as e:
             import logging
-            logging.error(f"❌ Error decrypting audio file: {e}", exc_info=True)
+            logging.error(f"[ERROR] Error decrypting audio file: {e}", exc_info=True)
             print(f"Error decrypting audio file: {e}")
             raise
 
@@ -89,14 +89,14 @@ class UserTranscriptionService:
             Path to decrypted temporary file, or None on failure
         """
         import logging
-        logging.info(f"🔓 Starting decryption for s3_key={s3_key}, user_id={user_id}")
+        logging.info(f"[DECRYPT] Starting decryption for s3_key={s3_key}, user_id={user_id}")
 
         try:
             # Get user's encryption key from Secrets Manager
             encryption_key = secrets_manager.get_user_encryption_key(user_id)
-            logging.info(f"🔑 Got encryption key for user {user_id}: {encryption_key[:20] if encryption_key else 'None'}...")
+            logging.info(f"[KEY] Got encryption key for user {user_id}: {encryption_key[:20] if encryption_key else 'None'}...")
             if not encryption_key:
-                logging.error(f"❌ Encryption key not found for user {user_id}")
+                logging.error(f"[ERROR] Encryption key not found for user {user_id}")
                 print(f"Encryption key not found for user {user_id}")
                 return None
 
@@ -120,7 +120,7 @@ class UserTranscriptionService:
 
         except Exception as e:
             import logging
-            logging.error(f"❌ Error downloading and decrypting audio: {e}", exc_info=True)
+            logging.error(f"[ERROR] Error downloading and decrypting audio: {e}", exc_info=True)
             print(f"Error downloading and decrypting audio: {e}")
             return None
 

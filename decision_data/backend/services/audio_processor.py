@@ -46,7 +46,7 @@ class SafeAudioProcessor:
 
     async def start_processor(self):
         """Start the background processor."""
-        logger.info("🚀 Starting cost-safe audio processor...")
+        logger.info("[START] Starting cost-safe audio processor...")
         logger.info(f"Safety limits: {self.MAX_FILE_SIZE_MB}MB max, {self.MAX_RETRIES} retries, {self.PROCESSING_TIMEOUT_MINUTES}min timeout")
 
         self.is_running = True
@@ -55,12 +55,12 @@ class SafeAudioProcessor:
                 await self.process_pending_jobs()
                 await asyncio.sleep(self.CHECK_INTERVAL_SECONDS)
             except Exception as e:
-                logger.error(f"❌ Error in processor loop: {e}")
+                logger.error(f"[ERROR] Error in processor loop: {e}")
                 await asyncio.sleep(self.CHECK_INTERVAL_SECONDS)
 
     def stop_processor(self):
         """Stop the background processor."""
-        logger.info("🛑 Stopping audio processor...")
+        logger.info("[STOP] Stopping audio processor...")
         self.is_running = False
 
     async def process_pending_jobs(self):
@@ -69,22 +69,22 @@ class SafeAudioProcessor:
             # Get pending jobs that are eligible for processing
             eligible_jobs = self.get_eligible_pending_jobs()
 
-            logger.info(f"📋 Checked for jobs, found {len(eligible_jobs)} eligible jobs")
+            logger.info(f"[INFO] Checked for jobs, found {len(eligible_jobs)} eligible jobs")
 
             if not eligible_jobs:
                 return
 
-            logger.info(f"📋 Processing {len(eligible_jobs)} eligible jobs")
+            logger.info(f"[INFO] Processing {len(eligible_jobs)} eligible jobs")
 
             for job in eligible_jobs:
                 try:
                     await self.process_single_job(job)
                 except Exception as e:
-                    logger.error(f"❌ Failed to process job {job['job_id']}: {e}")
+                    logger.error(f"[ERROR] Failed to process job {job['job_id']}: {e}")
                     self.mark_job_failed(job['job_id'], f"Processing error: {str(e)}")
 
         except Exception as e:
-            logger.error(f"❌ Error getting pending jobs: {e}")
+            logger.error(f"[ERROR] Error getting pending jobs: {e}")
 
     def get_eligible_pending_jobs(self) -> List[dict]:
         """Get pending jobs that are safe to process."""
@@ -106,12 +106,12 @@ class SafeAudioProcessor:
                 if self.is_job_eligible(job, now):
                     eligible_jobs.append(job)
                 else:
-                    logger.debug(f"⏭️ Skipping job {job['job_id']} - not eligible")
+                    logger.debug(f"[SKIP] Skipping job {job['job_id']} - not eligible")
 
             return eligible_jobs
 
         except Exception as e:
-            logger.error(f"❌ Error querying jobs: {e}")
+            logger.error(f"[ERROR] Error querying jobs: {e}")
             return []
 
     def is_job_eligible(self, job: dict, now: datetime) -> bool:
@@ -121,7 +121,7 @@ class SafeAudioProcessor:
         # Check retry count
         retry_count = job.get('retry_count', 0)
         if retry_count >= self.MAX_RETRIES:
-            logger.warning(f"⚠️ Job {job_id} exceeded max retries ({retry_count})")
+            logger.warning(f"[WARN] Job {job_id} exceeded max retries ({retry_count})")
             self.mark_job_failed(job_id, f"Exceeded maximum retries ({self.MAX_RETRIES})")
             return False
 
@@ -129,7 +129,7 @@ class SafeAudioProcessor:
         created_at = datetime.fromisoformat(job['created_at'])
         age_hours = (now - created_at).total_seconds() / 3600
         if age_hours > 24:  # 24 hour limit
-            logger.warning(f"⚠️ Job {job_id} is too old ({age_hours:.1f} hours)")
+            logger.warning(f"[WARN] Job {job_id} is too old ({age_hours:.1f} hours)")
             self.mark_job_failed(job_id, "Job expired - too old")
             return False
 
@@ -140,7 +140,7 @@ class SafeAudioProcessor:
                 last_attempt_time = datetime.fromisoformat(last_attempt)
                 time_since_last = (now - last_attempt_time).total_seconds() / 60
                 if time_since_last < self.RETRY_BACKOFF_MINUTES:
-                    logger.debug(f"⏳ Job {job_id} in backoff period ({time_since_last:.1f}min)")
+                    logger.debug(f"[WAIT] Job {job_id} in backoff period ({time_since_last:.1f}min)")
                     return False
 
         return True
@@ -151,7 +151,7 @@ class SafeAudioProcessor:
         user_id = job['user_id']
         audio_file_id = job.get('audio_file_id')
 
-        logger.info(f"🎵 Processing job {job_id} for user {user_id}")
+        logger.info(f"[AUDIO] Processing job {job_id} for user {user_id}")
 
         if not audio_file_id:
             self.mark_job_failed(job_id, "No audio file ID provided")
@@ -169,7 +169,7 @@ class SafeAudioProcessor:
         # Check file size safety limit
         file_size_mb = audio_file.file_size / (1024 * 1024)
         if file_size_mb > self.MAX_FILE_SIZE_MB:
-            logger.warning(f"⚠️ File too large: {file_size_mb:.1f}MB > {self.MAX_FILE_SIZE_MB}MB")
+            logger.warning(f"[WARN] File too large: {file_size_mb:.1f}MB > {self.MAX_FILE_SIZE_MB}MB")
             self.mark_job_failed(job_id, f"File too large ({file_size_mb:.1f}MB)")
             return
 
@@ -203,18 +203,18 @@ class SafeAudioProcessor:
             )
 
             processing_time = time.time() - start_time
-            logger.info(f"✅ Job {job_id} completed in {processing_time:.1f}s")
+            logger.info(f"[OK] Job {job_id} completed in {processing_time:.1f}s")
 
             if transcript_id:
-                logger.info(f"📝 Created transcript {transcript_id}")
+                logger.info(f"[NOTE] Created transcript {transcript_id}")
             else:
-                logger.warning(f"⚠️ Job {job_id} completed but no transcript created")
+                logger.warning(f"[WARN] Job {job_id} completed but no transcript created")
 
         except asyncio.TimeoutError:
-            logger.error(f"⏰ Job {job_id} timed out after {self.PROCESSING_TIMEOUT_MINUTES} minutes")
+            logger.error(f"[TIMEOUT] Job {job_id} timed out after {self.PROCESSING_TIMEOUT_MINUTES} minutes")
             self.mark_job_failed(job_id, f"Processing timeout ({self.PROCESSING_TIMEOUT_MINUTES} minutes)")
         except Exception as e:
-            logger.error(f"❌ Job {job_id} failed: {e}")
+            logger.error(f"[ERROR] Job {job_id} failed: {e}")
             # Don't mark as failed immediately - let it retry with backoff
             raise
 
@@ -233,18 +233,18 @@ class SafeAudioProcessor:
                 }
             )
 
-            logger.info(f"📊 Job {job_id} attempt #{new_retry_count}")
+            logger.info(f"[STATS] Job {job_id} attempt #{new_retry_count}")
 
         except Exception as e:
-            logger.error(f"❌ Failed to update job attempt for {job_id}: {e}")
+            logger.error(f"[ERROR] Failed to update job attempt for {job_id}: {e}")
 
     def mark_job_failed(self, job_id: str, error_message: str):
         """Mark a job as permanently failed."""
         try:
             self.transcription_service.update_job_status(job_id, 'failed', error_message)
-            logger.warning(f"💀 Job {job_id} marked as failed: {error_message}")
+            logger.warning(f"[FAIL] Job {job_id} marked as failed: {error_message}")
         except Exception as e:
-            logger.error(f"❌ Failed to mark job {job_id} as failed: {e}")
+            logger.error(f"[ERROR] Failed to mark job {job_id} as failed: {e}")
 
     def get_user_preferences(self, user_id: str) -> Optional[dict]:
         """Get user preferences to check if transcription is enabled."""
@@ -276,14 +276,14 @@ class SafeAudioProcessor:
             )
 
             if transcript_id:
-                logger.info(f"✅ Automatic processing completed for {audio_file_id}")
+                logger.info(f"[OK] Automatic processing completed for {audio_file_id}")
                 return transcript_id
             else:
-                logger.warning(f"⚠️ Automatic processing returned no transcript for {audio_file_id}")
+                logger.warning(f"[WARN] Automatic processing returned no transcript for {audio_file_id}")
                 return None
 
         except Exception as e:
-            logger.error(f"❌ Automatic processing failed for {audio_file_id}: {e}")
+            logger.error(f"[ERROR] Automatic processing failed for {audio_file_id}: {e}")
             return None
 
 # Global processor instance

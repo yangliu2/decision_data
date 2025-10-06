@@ -33,7 +33,7 @@ def check_encryption_keys():
         response = user_service.users_table.scan()
         users = response['Items']
 
-        print(f"📊 Found {len(users)} users in DynamoDB")
+        print(f"[STATS] Found {len(users)} users in DynamoDB")
         print()
 
         users_without_keys = []
@@ -46,11 +46,11 @@ def check_encryption_keys():
             encryption_key = secrets_manager.get_user_encryption_key(user_id)
 
             if encryption_key:
-                print(f"✅ {email}")
+                print(f"[OK] {email}")
                 print(f"   User ID: {user_id}")
                 print(f"   Key: {encryption_key[:20]}... (exists)")
             else:
-                print(f"❌ {email}")
+                print(f"[ERROR] {email}")
                 print(f"   User ID: {user_id}")
                 print(f"   Key: MISSING")
                 users_without_keys.append((user_id, email))
@@ -68,7 +68,7 @@ def check_encryption_keys():
 
         # Offer to create missing keys
         if users_without_keys:
-            print("⚠️  The following users are MISSING encryption keys:")
+            print("[WARN]  The following users are MISSING encryption keys:")
             for user_id, email in users_without_keys:
                 print(f"   - {email} ({user_id})")
             print()
@@ -76,23 +76,23 @@ def check_encryption_keys():
             create_keys = input("Do you want to create missing keys? (yes/no): ")
 
             if create_keys.lower() == 'yes':
-                print("\n🔑 Creating encryption keys...")
+                print("\n[KEY] Creating encryption keys...")
                 for user_id, email in users_without_keys:
                     try:
                         secrets_manager.store_user_encryption_key(user_id)
-                        print(f"   ✅ Created key for {email}")
+                        print(f"   [OK] Created key for {email}")
                     except Exception as e:
-                        print(f"   ❌ Failed for {email}: {e}")
+                        print(f"   [ERROR] Failed for {email}: {e}")
 
-                print("\n✅ Key creation complete!")
+                print("\n[OK] Key creation complete!")
                 print("\n📱 Users must now:")
                 print("   1. Logout of Android app")
                 print("   2. Login again to fetch new encryption keys")
         else:
-            print("✅ All users have encryption keys!")
+            print("[OK] All users have encryption keys!")
 
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[ERROR] Error: {e}")
         import traceback
         traceback.print_exc()
 

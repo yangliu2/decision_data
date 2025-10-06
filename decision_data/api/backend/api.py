@@ -54,14 +54,14 @@ async def startup_event():
     """Start background services on app startup"""
     global background_processor_task
     try:
-        logging.info("🚀 Starting Decision Data API...")
+        logging.info("[START] Starting Decision Data API...")
 
         # Start background processor for automatic transcription
         background_processor_task = asyncio.create_task(start_background_processor())
-        logging.info("✅ Background processor started successfully")
+        logging.info("[OK] Background processor started successfully")
 
     except Exception as e:
-        logging.error(f"❌ Error starting background services: {e}")
+        logging.error(f"[ERROR] Error starting background services: {e}")
         # Don't fail startup if background processor fails
         pass
 
@@ -70,7 +70,7 @@ async def shutdown_event():
     """Clean shutdown of background services"""
     global background_processor_task
     try:
-        logging.info("🛑 Shutting down Decision Data API...")
+        logging.info("[STOP] Shutting down Decision Data API...")
 
         # Stop background processor gracefully
         if background_processor_task and not background_processor_task.done():
@@ -81,10 +81,10 @@ async def shutdown_event():
             except asyncio.CancelledError:
                 pass
 
-        logging.info("✅ Background services shut down cleanly")
+        logging.info("[OK] Background services shut down cleanly")
 
     except Exception as e:
-        logging.error(f"❌ Error during shutdown: {e}")
+        logging.error(f"[ERROR] Error during shutdown: {e}")
 
 # Note: Background processor now enabled for automatic transcription processing
 # Manual transcription triggers still available for immediate processing
@@ -512,20 +512,20 @@ async def safe_process_transcription(user_id: str, file_id: str, password: str, 
         processing_time = time.time() - start_time
 
         if result:
-            logging.info(f"✅ Transcription completed for {file_id} in {processing_time:.1f}s")
+            logging.info(f"[OK] Transcription completed for {file_id} in {processing_time:.1f}s")
         else:
-            logging.warning(f"⚠️ Transcription completed but no result for {file_id}")
+            logging.warning(f"[WARN] Transcription completed but no result for {file_id}")
 
     except asyncio.TimeoutError:
         transcription_service.update_job_status(
             job_id, 'failed', 'Processing timeout (5 minutes)'
         )
-        logging.error(f"⏰ Transcription timeout for {file_id}")
+        logging.error(f"[TIMEOUT] Transcription timeout for {file_id}")
     except Exception as e:
         transcription_service.update_job_status(
             job_id, 'failed', f'Processing error: {str(e)}'
         )
-        logging.error(f"❌ Transcription failed for {file_id}: {e}")
+        logging.error(f"[ERROR] Transcription failed for {file_id}: {e}")
 
 # Transcription Endpoints
 

@@ -35,12 +35,12 @@ def create_tables():
             ],
             BillingMode='PAY_PER_REQUEST'
         )
-        print("✅ panzoto-user-preferences table created successfully")
+        print("[OK] panzoto-user-preferences table created successfully")
     except Exception as e:
         if 'already exists' in str(e).lower():
-            print("⚠️  panzoto-user-preferences table already exists")
+            print("[WARN]  panzoto-user-preferences table already exists")
         else:
-            print(f"❌ Error creating panzoto-user-preferences table: {e}")
+            print(f"[ERROR] Error creating panzoto-user-preferences table: {e}")
 
     # 2. Processing Jobs Table
     print("Creating panzoto-processing-jobs table...")
@@ -79,12 +79,12 @@ def create_tables():
             ],
             BillingMode='PAY_PER_REQUEST'
         )
-        print("✅ panzoto-processing-jobs table created successfully")
+        print("[OK] panzoto-processing-jobs table created successfully")
     except Exception as e:
         if 'already exists' in str(e).lower():
-            print("⚠️  panzoto-processing-jobs table already exists")
+            print("[WARN]  panzoto-processing-jobs table already exists")
         else:
-            print(f"❌ Error creating panzoto-processing-jobs table: {e}")
+            print(f"[ERROR] Error creating panzoto-processing-jobs table: {e}")
 
     # 3. User Transcripts Table
     print("Creating panzoto-transcripts table...")
@@ -123,12 +123,12 @@ def create_tables():
             ],
             BillingMode='PAY_PER_REQUEST'
         )
-        print("✅ panzoto-transcripts table created successfully")
+        print("[OK] panzoto-transcripts table created successfully")
     except Exception as e:
         if 'already exists' in str(e).lower():
-            print("⚠️  panzoto-transcripts table already exists")
+            print("[WARN]  panzoto-transcripts table already exists")
         else:
-            print(f"❌ Error creating panzoto-transcripts table: {e}")
+            print(f"[ERROR] Error creating panzoto-transcripts table: {e}")
 
     print("\n🎯 DynamoDB table creation complete!")
     print("All tables are now ready for the new user preferences and processing features.")
