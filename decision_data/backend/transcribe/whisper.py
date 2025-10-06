@@ -46,16 +46,72 @@ def get_audio_duration(audio_path: Path) -> float:
         return max(5.0, min(estimated_duration, 30.0))  # Clamp between 5-30 seconds
 
 
+def convert_to_supported_format(audio_path: Path) -> Path:
+    """Convert audio file to MP3 format supported by OpenAI Whisper.
+
+    OpenAI Whisper supports: flac, m4a, mp3, mp4, mpeg, mpga, oga, ogg, wav, webm
+    This function converts 3gp and other unsupported formats to mp3.
+
+    :param audio_path: Path to the original audio file
+    :return: Path to the converted audio file (or original if already supported)
+    """
+    import subprocess
+
+    # Supported formats by OpenAI Whisper
+    supported_formats = {'.flac', '.m4a', '.mp3', '.mp4', '.mpeg', '.mpga', '.oga', '.ogg', '.wav', '.webm'}
+
+    if audio_path.suffix.lower() in supported_formats:
+        logger.info(f"Audio format {audio_path.suffix} already supported, no conversion needed")
+        return audio_path
+
+    # Convert to mp3
+    output_path = audio_path.with_suffix('.mp3')
+    logger.info(f"Converting {audio_path.suffix} to mp3 format: {output_path}")
+
+    try:
+        # Use ffmpeg to convert
+        subprocess.run([
+            'ffmpeg',
+            '-i', str(audio_path),
+            '-acodec', 'libmp3lame',
+            '-ar', '16000',  # 16kHz sample rate (good for speech)
+            '-ac', '1',      # Mono channel
+            '-b:a', '32k',   # 32kbps bitrate (sufficient for speech)
+            '-y',            # Overwrite output file
+            str(output_path)
+        ], check=True, capture_output=True, timeout=30)
+
+        logger.info(f"Successfully converted to mp3: {output_path}")
+
+        # Delete original file to save space
+        audio_path.unlink()
+
+        return output_path
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to convert audio file: {e.stderr.decode()}")
+        raise Exception(f"Audio conversion failed: {e.stderr.decode()}")
+    except FileNotFoundError:
+        raise Exception("ffmpeg is not installed. Please install ffmpeg: apt-get install ffmpeg")
+    except subprocess.TimeoutExpired:
+        raise Exception("Audio conversion timed out after 30 seconds")
+
+
 def transcribe_from_local(audio_path: Path) -> str:
-    """Transcribe audio file using Whiper service
+    """Transcribe audio file using Whisper service.
+
+    Automatically converts unsupported formats (like 3gp) to mp3 before transcription.
 
     :param audio_path: local audio path file
     :type audio_path: Path
     :return: transcription
     :rtype: str
     """
+    # Convert to supported format if needed
+    converted_path = convert_to_supported_format(audio_path)
+
     client = OpenAI(api_key=backend_config.OPENAI_API_KEY)
-    with audio_path.open("rb") as audio_file:
+    with converted_path.open("rb") as audio_file:
         transcription = client.audio.transcriptions.create(
             model="whisper-1",
             file=audio_file,
