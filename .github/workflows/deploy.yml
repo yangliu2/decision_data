@@ -23,33 +23,65 @@ jobs:
     - name: Deploy to server
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.DO_SSH_USER }}@206.189.185.129 << 'EOF'
+          set -e  # Exit on any error
+
+          echo "📦 Starting deployment..."
+
           # Navigate to project directory
           cd /root/decision_data
 
           # Pull latest changes
+          echo "🔄 Pulling latest code from GitHub..."
           git pull origin main
 
           # Install dependencies using Poetry
+          echo "📚 Installing dependencies..."
           poetry install --only=main
 
           # Stop existing API process
-          pkill -f "uvicorn.*decision_data" || true
+          echo "🛑 Stopping existing API process..."
+          pkill -f "uvicorn.*decision_data" || echo "No existing process found"
 
-          # Wait a moment for process to stop
-          sleep 2
+          # Wait for process to fully stop
+          sleep 3
+
+          # Ensure log directory exists
+          mkdir -p /var/log
 
           # Start the API service
+          echo "🚀 Starting API service..."
           nohup poetry run uvicorn decision_data.api.backend.api:app --host 0.0.0.0 --port 8000 > /var/log/decision-data-api.log 2>&1 &
 
+          # Store PID for verification
+          NEW_PID=$!
+          echo "Started new process with PID: $NEW_PID"
+
+          # Wait for service to initialize
+          echo "⏳ Waiting for service to start..."
+          sleep 5
+
           # Verify it started
-          sleep 3
           if pgrep -f "uvicorn.*decision_data" > /dev/null; then
-            echo "✅ API service started successfully"
+            RUNNING_PID=$(pgrep -f "uvicorn.*decision_data")
+            echo "✅ API service started successfully (PID: $RUNNING_PID)"
+
+            # Test health endpoint
+            echo "🏥 Testing health endpoint..."
+            if curl -s http://localhost:8000/api/health | grep -q "healthy"; then
+              echo "✅ Health check passed"
+            else
+              echo "⚠️  Health check returned unexpected response"
+            fi
+
+            # Show recent logs
+            echo "📋 Recent logs:"
+            tail -10 /var/log/decision-data-api.log
           else
             echo "❌ API service failed to start"
-            tail -20 /var/log/decision-data-api.log
+            echo "📋 Last 30 lines of logs:"
+            tail -30 /var/log/decision-data-api.log
             exit 1
           fi
 
-          echo "🚀 Deployment completed successfully"
+          echo "🎉 Deployment completed successfully"
         EOF
