@@ -72,6 +72,8 @@ class UserTranscriptionService:
             return decrypted_data
 
         except Exception as e:
+            import logging
+            logging.error(f"❌ Error decrypting audio file: {e}", exc_info=True)
             print(f"Error decrypting audio file: {e}")
             raise
 
@@ -112,6 +114,8 @@ class UserTranscriptionService:
             return temp_file
 
         except Exception as e:
+            import logging
+            logging.error(f"❌ Error downloading and decrypting audio: {e}", exc_info=True)
             print(f"Error downloading and decrypting audio: {e}")
             return None
 
