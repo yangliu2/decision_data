@@ -195,7 +195,7 @@ class SafeAudioProcessor:
             transcript_id = await asyncio.wait_for(
                 asyncio.to_thread(
                     self.process_audio_file_automatic,
-                    user_id, audio_file_id, user
+                    user_id, audio_file_id
                 ),
                 timeout=self.PROCESSING_TIMEOUT_MINUTES * 60
             )
@@ -253,7 +253,7 @@ class SafeAudioProcessor:
         except Exception:
             return None
 
-    def process_audio_file_automatic(self, user_id: str, audio_file_id: str, user=None) -> Optional[str]:
+    def process_audio_file_automatic(self, user_id: str, audio_file_id: str) -> Optional[str]:
         """
         Process audio file for automatic transcription using server-managed encryption keys.
 
@@ -263,7 +263,6 @@ class SafeAudioProcessor:
         Args:
             user_id: User's UUID
             audio_file_id: Audio file UUID to process
-            user: User object (DEPRECATED - not used, kept for backward compatibility)
 
         Returns:
             Transcript ID if successful, None otherwise
