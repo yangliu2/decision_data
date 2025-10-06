@@ -654,8 +654,10 @@ async def get_user_encryption_key(
     so they can encrypt audio files before uploading to S3.
     """
     try:
+        logging.info(f"[KEY] Encryption key requested by user {current_user_id[:8]}...")
         user_service = UserService()
         encryption_key = user_service.get_user_encryption_key(current_user_id)
+        logging.info(f"[KEY] Returning encryption key: {encryption_key[:20] if encryption_key else 'None'}...")
 
         if not encryption_key:
             raise HTTPException(
