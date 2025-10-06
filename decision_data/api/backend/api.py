@@ -261,6 +261,21 @@ async def register(request: Request, user_data: UserCreate):
         if not user:
             raise HTTPException(status_code=409, detail="User already exists")
 
+        # Create default user preferences with automatic transcription enabled
+        try:
+            preferences_service = UserPreferencesService()
+            default_prefs = UserPreferencesCreate(
+                notification_email=user_data.email,
+                enable_daily_summary=False,  # Off by default (user can enable in settings)
+                enable_transcription=True,   # ON by default - automatic transcription
+                summary_time_utc="08:00"     # 8 AM UTC default
+            )
+            preferences_service.create_preferences(user.user_id, default_prefs)
+            logging.info(f"Created default preferences for user {user.user_id} with transcription ENABLED")
+        except Exception as pref_error:
+            # Don't fail registration if preferences creation fails
+            logging.error(f"Failed to create default preferences for user {user.user_id}: {pref_error}")
+
         # Generate JWT token
         token = generate_jwt_token(user.user_id)
 
