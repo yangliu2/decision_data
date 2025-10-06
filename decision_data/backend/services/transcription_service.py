@@ -5,6 +5,7 @@ import boto3
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
+from decimal import Decimal
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Hash import SHA256
@@ -176,7 +177,7 @@ class UserTranscriptionService:
             'user_id': user_id,
             'audio_file_id': audio_file_id,
             'transcript': transcript,
-            'length_in_seconds': duration,
+            'length_in_seconds': Decimal(str(duration)),  # Convert float to Decimal for DynamoDB
             's3_key': s3_key,
             'created_at': now.isoformat()
         }
