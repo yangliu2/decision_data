@@ -69,6 +69,8 @@ class SafeAudioProcessor:
             # Get pending jobs that are eligible for processing
             eligible_jobs = self.get_eligible_pending_jobs()
 
+            logger.info(f"📋 Checked for jobs, found {len(eligible_jobs)} eligible jobs")
+
             if not eligible_jobs:
                 return
 
