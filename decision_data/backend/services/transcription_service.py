@@ -88,10 +88,15 @@ class UserTranscriptionService:
         Returns:
             Path to decrypted temporary file, or None on failure
         """
+        import logging
+        logging.info(f"🔓 Starting decryption for s3_key={s3_key}, user_id={user_id}")
+
         try:
             # Get user's encryption key from Secrets Manager
             encryption_key = secrets_manager.get_user_encryption_key(user_id)
+            logging.info(f"🔑 Got encryption key for user {user_id}: {encryption_key[:20] if encryption_key else 'None'}...")
             if not encryption_key:
+                logging.error(f"❌ Encryption key not found for user {user_id}")
                 print(f"Encryption key not found for user {user_id}")
                 return None
 
