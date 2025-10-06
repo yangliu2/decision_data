@@ -345,20 +345,25 @@ async def create_audio_file(
         # Automatically create transcription job for the uploaded audio file
         from decision_data.backend.services.transcription_service import UserTranscriptionService
         transcription_service = UserTranscriptionService()
-        job_id = transcription_service.create_processing_job(
-            user_id=current_user_id,
-            job_type="transcription",
-            audio_file_id=audio_file.file_id
-        )
-
-        print(f"Created transcription job {job_id} for audio file {audio_file.file_id}")
+        try:
+            job_id = transcription_service.create_processing_job(
+                user_id=current_user_id,
+                job_type="transcription",
+                audio_file_id=audio_file.file_id
+            )
+            logging.info(f"Created transcription job {job_id} for audio file {audio_file.file_id}")
+        except Exception as job_error:
+            logging.error(f"Failed to create transcription job: {job_error}", exc_info=True)
+            # Still return audio file even if job creation fails
+            # Job can be created manually later
 
         return audio_file
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to create audio file")
+        logging.error(f"Error in create_audio_file endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create audio file: {str(e)}")
 
 
 @app.get("/api/audio-file/{file_id}", response_model=AudioFile)
