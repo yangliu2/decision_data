@@ -378,6 +378,10 @@ class UserTranscriptionService:
 
             jobs = []
             for item in response['Items']:
+                # Skip daily_summary jobs - they're managed automatically and not shown to users
+                if item.get('job_type') == 'daily_summary':
+                    continue
+
                 # Parse created_at from ISO string
                 # Handle both with and without 'Z' suffix for Java compatibility
                 created_at_str = item['created_at']
