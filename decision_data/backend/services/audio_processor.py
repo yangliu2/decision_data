@@ -11,7 +11,7 @@ This service prevents expensive infinite loops by implementing strict limits:
 
 import asyncio
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 import logging
 from pathlib import Path
@@ -126,7 +126,16 @@ class SafeAudioProcessor:
             return False
 
         # Check if job is too old (stuck jobs)
-        created_at = datetime.fromisoformat(job['created_at'])
+        # Parse created_at and handle both timezone-aware and naive datetimes
+        created_at_str = job['created_at']
+        created_at = datetime.fromisoformat(created_at_str)
+
+        # Ensure we're comparing timezone-aware datetimes
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+
         age_hours = (now - created_at).total_seconds() / 3600
         if age_hours > 24:  # 24 hour limit
             logger.warning(f"[WARN] Job {job_id} is too old ({age_hours:.1f} hours)")
@@ -138,6 +147,12 @@ class SafeAudioProcessor:
             last_attempt = job.get('last_attempt_at')
             if last_attempt:
                 last_attempt_time = datetime.fromisoformat(last_attempt)
+
+                # Ensure timezone-aware comparison
+                if last_attempt_time.tzinfo is None:
+                    from datetime import timezone
+                    last_attempt_time = last_attempt_time.replace(tzinfo=timezone.utc)
+
                 time_since_last = (now - last_attempt_time).total_seconds() / 60
                 if time_since_last < self.RETRY_BACKOFF_MINUTES:
                     logger.debug(f"[WAIT] Job {job_id} in backoff period ({time_since_last:.1f}min)")
