@@ -23,12 +23,14 @@ from decision_data.backend.services.audio_service import AudioFileService
 from decision_data.backend.services.preferences_service import UserPreferencesService
 from decision_data.backend.services.transcription_service import UserTranscriptionService
 from decision_data.backend.services.audio_processor import start_background_processor, stop_background_processor
+from decision_data.backend.services.daily_summary_scheduler import start_daily_summary_scheduler, stop_daily_summary_scheduler
 from decision_data.backend.utils.auth import generate_jwt_token, get_current_user
 import asyncio
 import time
 
-# Global background processor task
+# Global background tasks
 background_processor_task = None
+daily_summary_scheduler_task = None
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -52,7 +54,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 @app.on_event("startup")
 async def startup_event():
     """Start background services on app startup"""
-    global background_processor_task
+    global background_processor_task, daily_summary_scheduler_task
     try:
         logging.info("[START] Starting Decision Data API...")
 
@@ -60,15 +62,19 @@ async def startup_event():
         background_processor_task = asyncio.create_task(start_background_processor())
         logging.info("[OK] Background processor started successfully")
 
+        # Start daily summary scheduler for automatic scheduled summaries
+        daily_summary_scheduler_task = asyncio.create_task(start_daily_summary_scheduler())
+        logging.info("[OK] Daily summary scheduler started successfully")
+
     except Exception as e:
         logging.error(f"[ERROR] Error starting background services: {e}")
-        # Don't fail startup if background processor fails
+        # Don't fail startup if background services fail
         pass
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Clean shutdown of background services"""
-    global background_processor_task
+    global background_processor_task, daily_summary_scheduler_task
     try:
         logging.info("[STOP] Shutting down Decision Data API...")
 
@@ -78,6 +84,15 @@ async def shutdown_event():
             background_processor_task.cancel()
             try:
                 await background_processor_task
+            except asyncio.CancelledError:
+                pass
+
+        # Stop daily summary scheduler gracefully
+        if daily_summary_scheduler_task and not daily_summary_scheduler_task.done():
+            stop_daily_summary_scheduler()
+            daily_summary_scheduler_task.cancel()
+            try:
+                await daily_summary_scheduler_task
             except asyncio.CancelledError:
                 pass
 
