@@ -599,25 +599,95 @@ find . -path "*/.tox" -prune -o -type f -name "*.py" -print
 
 ---
 
+## Current In-Progress: Background Recording Feature
+
+### Status: Design Complete - Ready for Implementation
+
+**Feature:** Allow app to record continuously in background (screen can be off) until user stops or scheduled time reached
+
+**Problem:** Currently recording stops when screen turns off or app backgrounded
+
+**Solution:** Implement using Android Foreground Service + WorkManager
+
+**Implementation Phases:**
+
+#### Phase 1: Backend Preferences (1 day)
+- Add fields to `panzoto-user-preferences`:
+  - `enable_background_recording: bool` (default: False)
+  - `recording_stop_time_utc: string` (optional, format: "HH:MM")
+  - `recording_time_zone: string` (format: "UTC" or "America/New_York")
+- Create migration script: `decision_data/scripts/migrate_background_recording_prefs.py`
+- Update models: `UserPreferencesCreate`, `UserPreferencesUpdate`
+- Update API endpoints: GET/PUT `/api/user/preferences`
+
+#### Phase 2: Android Foreground Service (2-3 days)
+- Create `RecordingService.kt` (~400 lines)
+  - Handles recording when app backgrounded
+  - Checks time-based stop condition
+  - Shows persistent notification
+- Create `AudioUploadWorker.kt` (~300 lines)
+  - WorkManager job for encryption + S3 upload
+  - Automatic retry on network failure
+  - Survives app termination
+- Update `MainActivity.kt`
+  - Start/stop foreground service
+  - Load preferences from backend
+- Update `AndroidManifest.xml`
+  - Add permissions: `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MICROPHONE`, `WAKE_LOCK`
+  - Register service: `RecordingService`
+
+#### Phase 3: UI Updates (1 day)
+- Update `SettingsScreen.kt`
+  - Toggle: "Enable Background Recording"
+  - Input: "Stop Recording At (UTC)" (e.g., "18:00")
+  - Input: "Time Zone" (e.g., "America/New_York")
+- Update `MainAppScreen.kt`
+  - Show status when background recording active
+
+#### Phase 4: Testing (2 days)
+- Screen off recording continues ✓
+- App backgrounded recording continues ✓
+- Stop time triggers recording stop ✓
+- Manual stop works ✓
+- Upload happens in background ✓
+
+**Total Effort:** 6-7 days
+
+**Documentation:**
+- `docs/BACKGROUND_RECORDING_IMPLEMENTATION.md` - Complete technical spec (500+ lines, code samples)
+- `docs/BACKGROUND_RECORDING_SUMMARY.md` - Quick reference
+
+**Start Point:**
+1. Backend preferences migration (easiest, 1 day)
+2. Foreground Service + WorkManager (hardest, 2-3 days)
+3. UI + Testing (1-2 days)
+
+---
+
 ## Next Steps & Future Enhancements
 
-### High Priority
-- [ ] Email notifications when transcription completes
+### High Priority (Next Session)
+- [x] ~~Email notifications when transcription completes~~ (DONE - automatic daily summary)
+- [ ] **Background Recording Feature** (IN PROGRESS - see above)
+  - Phase 1: Backend preferences
+  - Phase 2: Foreground Service implementation
+  - Phase 3: UI and testing
 - [ ] Batch transcript export
 - [ ] Search functionality for transcripts
-- [ ] Daily summary email generation
 
 ### Medium Priority
 - [ ] Redis caching for encryption keys
 - [ ] CloudWatch monitoring and alerts
 - [ ] Mobile push notifications
 - [ ] Transcript editing in app
+- [ ] Long-form audio recording improvements (gap prevention, overlap-based chunking)
 
 ### Low Priority
 - [ ] Multi-language transcription support
 - [ ] Speaker diarization (identify different speakers)
 - [ ] Audio playback with transcript highlight
 - [ ] iOS app (Swift/SwiftUI)
+- [ ] Streaming audio upload (analyzed, deferred - not cost-effective for current use case)
 
 ---
 
@@ -636,17 +706,36 @@ find . -path "*/.tox" -prune -o -type f -name "*.py" -print
 
 ## Success Metrics
 
-**As of October 6, 2025:**
+**As of October 20, 2025:**
 - ✅ **Zero encryption errors** (MAC check failures resolved)
 - ✅ **100% job completion rate** (for valid audio files)
 - ✅ **Average processing time:** 5-10 seconds
 - ✅ **Zero manual intervention needed** (fully automatic)
 - ✅ **User satisfaction:** Password-free workflow
+- ✅ **Automatic daily summaries** (working perfectly)
+- ✅ **Android UI improvements** (transcript sorting, modal view, proper padding)
+- ✅ **Timestamp accuracy** (recording start time tracked separately)
+- ✅ **Long audio support** (chunking with auto-restart works)
+- ✅ **Database optimization** (60 jobs → 11 jobs after cleanup)
 
-**Status:** 🚀 **PRODUCTION READY**
+**Recent Session Work (October 20, 2025):**
+- Analyzed long-form audio recording capabilities
+- Documented streaming audio implementation (4 weeks, not recommended for current use case)
+- Documented gap prevention strategies
+- Analyzed background recording requirements
+- Created background recording implementation guide (6-7 days effort)
+- Added 4 new comprehensive documentation files
+
+**Status:** 🚀 **PRODUCTION READY** with background recording feature ready for implementation
 
 ---
 
-**Last Updated:** October 6, 2025
-**System Version:** 1.0.0
+**Last Updated:** October 20, 2025
+**System Version:** 1.0.0 (with daily summaries, UI improvements, timestamp tracking)
 **Maintained by:** Claude Code
+
+**Quick Links for Next Session:**
+- Background Recording: `docs/BACKGROUND_RECORDING_IMPLEMENTATION.md`
+- Long Audio Analysis: `docs/LONG_AUDIO_RECORDING_ANALYSIS.md`
+- Android UI Improvements: `docs/ANDROID_UI_IMPROVEMENTS.md`
+- Streaming Analysis: `docs/STREAMING_AUDIO_IMPLEMENTATION.md`
