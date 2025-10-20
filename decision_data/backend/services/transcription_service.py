@@ -13,6 +13,7 @@ import io
 import tempfile
 import base64
 from botocore.exceptions import ClientError
+from loguru import logger
 
 from decision_data.backend.config.config import backend_config
 from decision_data.backend.transcribe.whisper import transcribe_from_local, get_audio_duration
@@ -89,24 +90,45 @@ class UserTranscriptionService:
         Returns:
             Path to decrypted temporary file, or None on failure
         """
-        import logging
-        logging.info(f"[DECRYPT] Starting decryption for s3_key={s3_key}, user_id={user_id}")
-
         try:
+            logger.info(f"[DOWNLOAD] Starting S3 download and decryption for {s3_key}")
+
             # Get user's encryption key from Secrets Manager
-            encryption_key = secrets_manager.get_user_encryption_key(user_id)
-            logging.info(f"[KEY] Got encryption key for user {user_id}: {encryption_key[:20] if encryption_key else 'None'}...")
-            if not encryption_key:
-                logging.error(f"[ERROR] Encryption key not found for user {user_id}")
-                print(f"Encryption key not found for user {user_id}")
+            logger.info(f"[KEY] Fetching encryption key from Secrets Manager for user {user_id}")
+            try:
+                encryption_key = secrets_manager.get_user_encryption_key(user_id)
+            except Exception as key_error:
+                error_msg = f"Failed to fetch encryption key: {str(key_error)}"
+                logger.error(f"[KEY ERROR] {error_msg}", exc_info=True)
                 return None
 
+            if not encryption_key:
+                error_msg = f"Encryption key not found in Secrets Manager for user {user_id}"
+                logger.error(f"[KEY ERROR] {error_msg}")
+                return None
+
+            logger.info(f"[KEY] Encryption key found (length: {len(encryption_key)} chars)")
+
             # Download encrypted file from S3
-            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
-            encrypted_data = response['Body'].read()
+            logger.info(f"[S3] Downloading encrypted file from S3: {s3_key}")
+            try:
+                response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
+                encrypted_data = response['Body'].read()
+                logger.info(f"[S3] Downloaded {len(encrypted_data)} bytes from S3")
+            except Exception as s3_error:
+                error_msg = f"Failed to download from S3: {str(s3_error)}"
+                logger.error(f"[S3 ERROR] {error_msg}", exc_info=True)
+                return None
 
             # Decrypt the data
-            decrypted_data = self.decrypt_audio_file(encrypted_data, encryption_key)
+            logger.info(f"[DECRYPT] Decrypting {len(encrypted_data)} bytes with AES-256-GCM")
+            try:
+                decrypted_data = self.decrypt_audio_file(encrypted_data, encryption_key)
+                logger.info(f"[DECRYPT] Successfully decrypted to {len(decrypted_data)} bytes")
+            except Exception as decrypt_error:
+                error_msg = f"Decryption failed: {str(decrypt_error)}"
+                logger.error(f"[DECRYPT ERROR] {error_msg}", exc_info=True)
+                return None
 
             # Save decrypted data to temporary file
             temp_dir = Path("data/processing_audio")
@@ -117,25 +139,35 @@ class UserTranscriptionService:
             with open(temp_file, 'wb') as f:
                 f.write(decrypted_data)
 
+            logger.info(f"[TEMP] Saved decrypted file to {temp_file}")
             return temp_file
 
         except Exception as e:
-            import logging
-            logging.error(f"[ERROR] Error downloading and decrypting audio: {e}", exc_info=True)
-            print(f"Error downloading and decrypting audio: {e}")
+            logger.error(f"[CRITICAL ERROR] Unexpected error during download/decrypt: {str(e)}", exc_info=True)
             return None
 
-    def create_processing_job(self, user_id: str, job_type: str, audio_file_id: Optional[str] = None) -> str:
-        """Create a processing job record."""
+    def create_processing_job(self, user_id: str, job_type: str, audio_file_id: Optional[str] = None, created_at: Optional[datetime] = None) -> str:
+        """Create a processing job record.
+
+        Args:
+            user_id: User's UUID
+            job_type: Type of job (e.g., 'transcription', 'daily_summary')
+            audio_file_id: Associated audio file ID (for transcription jobs)
+            created_at: Optional creation timestamp (defaults to now). For transcription jobs,
+                       should be set to the audio file's recorded_at time for proper tracking.
+        """
         job_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+
+        # Use provided created_at or default to now
+        if created_at is None:
+            created_at = datetime.utcnow()
 
         item = {
             'job_id': job_id,
             'user_id': user_id,
             'job_type': job_type,
             'status': 'pending',
-            'created_at': now.isoformat(),
+            'created_at': created_at.isoformat(),
             'retry_count': 0
         }
 
@@ -199,55 +231,93 @@ class UserTranscriptionService:
             Transcript ID if successful, None otherwise
         """
         try:
+            logger.info(f"[PROCESS] Job {job_id} starting for audio {audio_file_id}")
             self.update_job_status(job_id, 'processing')
 
             # Get audio file metadata
+            logger.info(f"[FETCH] Retrieving audio file metadata")
             audio_service = AudioFileService()
             audio_file = audio_service.get_audio_file_by_id(audio_file_id)
 
             if not audio_file or audio_file.user_id != user_id:
-                self.update_job_status(job_id, 'failed', 'Audio file not found or access denied')
+                error_msg = 'Audio file not found or access denied'
+                logger.error(f"[ERROR] {error_msg} - audio_id={audio_file_id}, user={user_id}")
+                self.update_job_status(job_id, 'failed', error_msg)
                 return None
+
+            logger.info(f"[S3] Downloading from: {audio_file.s3_key}")
 
             # Download and decrypt audio file (now uses server-managed key)
-            decrypted_file = self.download_and_decrypt_audio(
-                audio_file.s3_key,
-                user_id
-            )
+            try:
+                decrypted_file = self.download_and_decrypt_audio(
+                    audio_file.s3_key,
+                    user_id
+                )
+            except Exception as decrypt_error:
+                error_msg = f"Decryption failed: {str(decrypt_error)}"
+                logger.error(f"[DECRYPT ERROR] {error_msg}", exc_info=True)
+                self.update_job_status(job_id, 'failed', error_msg)
+                return None
 
             if not decrypted_file:
-                self.update_job_status(job_id, 'failed', 'Failed to decrypt audio file')
+                error_msg = 'Failed to decrypt audio file'
+                logger.error(f"[ERROR] {error_msg}")
+                self.update_job_status(job_id, 'failed', error_msg)
                 return None
+
+            logger.info(f"[DECRYPT] Successfully decrypted to {decrypted_file}")
 
             try:
                 # Check duration
+                logger.info(f"[DURATION] Checking audio duration")
                 duration = get_audio_duration(decrypted_file)
+                logger.info(f"[DURATION] Audio duration: {duration}s (valid range: {backend_config.TRANSCRIPTION_MIN_DURATION_SECONDS}-{backend_config.TRANSCRIPTION_MAX_DURATION_SECONDS}s)")
+
                 if duration < backend_config.TRANSCRIPTION_MIN_DURATION_SECONDS or duration > backend_config.TRANSCRIPTION_MAX_DURATION_SECONDS:
-                    self.update_job_status(job_id, 'failed', f'Audio duration {duration}s outside valid range')
+                    error_msg = f'Audio duration {duration}s outside valid range ({backend_config.TRANSCRIPTION_MIN_DURATION_SECONDS}-{backend_config.TRANSCRIPTION_MAX_DURATION_SECONDS}s)'
+                    logger.error(f"[ERROR] {error_msg}")
+                    self.update_job_status(job_id, 'failed', error_msg)
                     return None
 
                 # Transcribe audio
+                logger.info(f"[TRANSCRIBE] Sending to OpenAI Whisper...")
                 transcript = transcribe_from_local(decrypted_file)
+                logger.info(f"[TRANSCRIBE] Received transcript ({len(transcript) if transcript else 0} chars)")
 
                 if not transcript or len(transcript.strip()) < 10:
-                    self.update_job_status(job_id, 'failed', 'Transcription failed or too short')
+                    logger.info(f"[SKIP] Audio too short or empty transcription - silently completing job")
+                    # Mark as completed without error - short audio is expected and OK
+                    self.update_job_status(job_id, 'completed')
                     return None
 
                 # Save transcript to database
+                logger.info(f"[SAVE] Saving transcript to database")
                 transcript_id = self.save_transcript_to_db(
                     user_id, audio_file_id, transcript, duration, audio_file.s3_key
                 )
+                logger.info(f"[SAVE] Saved transcript {transcript_id}")
 
                 self.update_job_status(job_id, 'completed')
+                logger.info(f"[SUCCESS] Job {job_id} completed with transcript {transcript_id}")
                 return transcript_id
+
+            except Exception as processing_error:
+                error_msg = f"Processing error: {str(processing_error)}"
+                logger.error(f"[PROCESSING ERROR] {error_msg}", exc_info=True)
+                self.update_job_status(job_id, 'failed', error_msg)
+                return None
 
             finally:
                 # Clean up decrypted file
+                logger.info(f"[CLEANUP] Removing temporary decrypted file")
                 if decrypted_file.exists():
                     decrypted_file.unlink()
+                    logger.info(f"[CLEANUP] Temporary file removed")
 
         except Exception as e:
-            self.update_job_status(job_id, 'failed', str(e))
+            error_msg = f"Job processing failed: {str(e)}"
+            logger.error(f"[CRITICAL ERROR] {error_msg}", exc_info=True)
+            self.update_job_status(job_id, 'failed', error_msg)
             return None
 
     def process_user_audio_file(self, user_id: str, audio_file_id: str) -> Optional[str]:

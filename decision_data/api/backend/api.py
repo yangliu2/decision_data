@@ -358,13 +358,15 @@ async def create_audio_file(
             raise HTTPException(status_code=500, detail="Failed to create audio file record")
 
         # Automatically create transcription job for the uploaded audio file
+        # Use audio file's recorded_at as job creation time for proper tracking
         from decision_data.backend.services.transcription_service import UserTranscriptionService
         transcription_service = UserTranscriptionService()
         try:
             job_id = transcription_service.create_processing_job(
                 user_id=current_user_id,
                 job_type="transcription",
-                audio_file_id=audio_file.file_id
+                audio_file_id=audio_file.file_id,
+                created_at=audio_file.recorded_at  # Use recording start time, not upload time
             )
             logging.info(f"Created transcription job {job_id} for audio file {audio_file.file_id}")
         except Exception as job_error:

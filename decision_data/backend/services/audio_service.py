@@ -27,6 +27,13 @@ class AudioFileService:
             file_id = str(uuid.uuid4())
             uploaded_at = datetime.utcnow()
 
+            # Parse recorded_at from ISO format sent by Android app
+            try:
+                recorded_at = datetime.fromisoformat(file_data.recorded_at.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                logger.warning(f"Invalid recorded_at format: {file_data.recorded_at}, using uploaded_at")
+                recorded_at = uploaded_at
+
             self.audio_files_table.put_item(
                 Item={
                     'file_id': file_id,
@@ -34,7 +41,9 @@ class AudioFileService:
                     's3_key': file_data.s3_key,
                     'file_size': file_data.file_size,
                     'uploaded_at': int(uploaded_at.timestamp()),
-                    'uploaded_at_iso': uploaded_at.isoformat()
+                    'uploaded_at_iso': uploaded_at.isoformat(),
+                    'recorded_at': int(recorded_at.timestamp()),
+                    'recorded_at_iso': recorded_at.isoformat()
                 }
             )
 
@@ -43,7 +52,8 @@ class AudioFileService:
                 user_id=user_id,
                 s3_key=file_data.s3_key,
                 file_size=file_data.file_size,
-                uploaded_at=uploaded_at
+                uploaded_at=uploaded_at,
+                recorded_at=recorded_at
             )
 
         except ClientError as e:
@@ -117,10 +127,16 @@ class AudioFileService:
         uploaded_at_timestamp = float(item.get('uploaded_at', 0))
         uploaded_at = datetime.fromtimestamp(uploaded_at_timestamp)
 
+        recorded_at = None
+        if 'recorded_at' in item:
+            recorded_at_timestamp = float(item.get('recorded_at'))
+            recorded_at = datetime.fromtimestamp(recorded_at_timestamp)
+
         return AudioFile(
             file_id=item['file_id'],
             user_id=item['user_id'],
             s3_key=item['s3_key'],
             file_size=item.get('file_size'),
-            uploaded_at=uploaded_at
+            uploaded_at=uploaded_at,
+            recorded_at=recorded_at
         )

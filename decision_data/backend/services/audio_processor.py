@@ -150,20 +150,26 @@ class SafeAudioProcessor:
         job_id = job['job_id']
         user_id = job['user_id']
         audio_file_id = job.get('audio_file_id')
+        retry_count = job.get('retry_count', 0)
 
-        logger.info(f"[AUDIO] Processing job {job_id} for user {user_id}")
+        logger.info(f"[AUDIO] Processing job {job_id} (attempt {retry_count + 1}/{self.MAX_RETRIES}) for user {user_id}")
 
         if not audio_file_id:
             self.mark_job_failed(job_id, "No audio file ID provided")
             return
 
         # Update retry count and timestamp
-        self.update_job_attempt(job_id, job.get('retry_count', 0))
+        self.update_job_attempt(job_id, retry_count)
 
         # Get audio file info for size check
-        audio_file = self.audio_service.get_audio_file_by_id(audio_file_id)
-        if not audio_file:
-            self.mark_job_failed(job_id, "Audio file not found")
+        try:
+            audio_file = self.audio_service.get_audio_file_by_id(audio_file_id)
+            if not audio_file:
+                self.mark_job_failed(job_id, "Audio file not found in database")
+                return
+        except Exception as e:
+            logger.error(f"[ERROR] Failed to fetch audio file {audio_file_id}: {e}", exc_info=True)
+            self.mark_job_failed(job_id, f"Failed to fetch audio file: {str(e)}")
             return
 
         # Check file size safety limit
@@ -174,23 +180,26 @@ class SafeAudioProcessor:
             return
 
         # Get user info for decryption
-        user = self.user_service.get_user_by_id(user_id)
-        if not user:
-            self.mark_job_failed(job_id, "User not found")
+        try:
+            user = self.user_service.get_user_by_id(user_id)
+            if not user:
+                self.mark_job_failed(job_id, "User not found in database")
+                return
+        except Exception as e:
+            logger.error(f"[ERROR] Failed to fetch user {user_id}: {e}", exc_info=True)
+            self.mark_job_failed(job_id, f"Failed to fetch user: {str(e)}")
             return
 
         # Check if user has transcription enabled
         preferences = self.get_user_preferences(user_id)
         if preferences and not preferences.get('enable_transcription', True):
-            logger.info(f"👤 User {user_id} has transcription disabled, skipping")
+            logger.info(f"User {user_id} has transcription disabled, skipping")
             self.mark_job_failed(job_id, "User has transcription disabled")
             return
 
         # Process with timeout protection
         try:
-            # For automatic processing, we need to modify the transcription service
-            # to not require user password (since it's not available in background)
-            # Instead, we'll create a version that uses stored encryption keys
+            logger.info(f"[PROC] Starting transcription for audio file {audio_file_id} ({file_size_mb:.1f}MB)")
 
             # Process with timeout
             start_time = time.time()
@@ -203,18 +212,18 @@ class SafeAudioProcessor:
             )
 
             processing_time = time.time() - start_time
-            logger.info(f"[OK] Job {job_id} completed in {processing_time:.1f}s")
+            logger.info(f"[OK] Job {job_id} completed successfully in {processing_time:.1f}s")
 
             if transcript_id:
-                logger.info(f"[NOTE] Created transcript {transcript_id}")
+                logger.info(f"[SUCCESS] Created transcript {transcript_id}")
             else:
-                logger.warning(f"[WARN] Job {job_id} completed but no transcript created")
+                logger.warning(f"[WARN] Job {job_id} completed but no transcript created (likely too short)")
 
         except asyncio.TimeoutError:
             logger.error(f"[TIMEOUT] Job {job_id} timed out after {self.PROCESSING_TIMEOUT_MINUTES} minutes")
             self.mark_job_failed(job_id, f"Processing timeout ({self.PROCESSING_TIMEOUT_MINUTES} minutes)")
         except Exception as e:
-            logger.error(f"[ERROR] Job {job_id} failed: {e}")
+            logger.error(f"[ERROR] Job {job_id} processing failed (attempt {retry_count + 1}/{self.MAX_RETRIES}): {e}", exc_info=True)
             # Don't mark as failed immediately - let it retry with backoff
             raise
 
@@ -269,20 +278,21 @@ class SafeAudioProcessor:
             Transcript ID if successful, None otherwise
         """
         try:
+            logger.info(f"[TRANSCRIBE] Starting transcription for job {job_id}")
             transcript_id = self.transcription_service.process_audio_for_existing_job(
                 job_id, user_id, audio_file_id
             )
 
             if transcript_id:
-                logger.info(f"[OK] Automatic processing completed for {audio_file_id}")
+                logger.info(f"[SUCCESS] Transcription completed for {audio_file_id}, transcript {transcript_id}")
                 return transcript_id
             else:
-                logger.warning(f"[WARN] Automatic processing returned no transcript for {audio_file_id}")
+                logger.warning(f"[SKIP] Transcription returned no transcript for {audio_file_id} (empty or too short)")
                 return None
 
         except Exception as e:
-            logger.error(f"[ERROR] Automatic processing failed for {audio_file_id}: {e}")
-            return None
+            logger.error(f"[ERROR] Transcription failed for job {job_id}, audio {audio_file_id}: {str(e)}", exc_info=True)
+            raise
 
 # Global processor instance
 processor = SafeAudioProcessor()

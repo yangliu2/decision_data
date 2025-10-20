@@ -48,6 +48,7 @@ class AudioFile(BaseModel):
     s3_key: str
     file_size: Optional[int] = None
     uploaded_at: datetime
+    recorded_at: Optional[datetime] = None  # When recording actually started (from Android app)
 
 
 class UserCreate(BaseModel):
@@ -63,6 +64,7 @@ class UserLogin(BaseModel):
 class AudioFileCreate(BaseModel):
     s3_key: str
     file_size: Optional[int] = None
+    recorded_at: str  # ISO 8601 timestamp when recording started (from Android app)
 
 
 class UserPreferences(BaseModel):

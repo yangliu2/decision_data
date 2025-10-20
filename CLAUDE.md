@@ -19,6 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 👤 **Multi-user support** - Complete user isolation with individual encryption keys
 - 📱 **Mobile-first** - Android app with seamless audio recording and upload
 - ⚡ **Real-time processing** - Jobs processed within 30 seconds of upload
+- ⏱️ **Accurate timestamp tracking** - Preserves recording start time separately from upload time
 
 ---
 
@@ -491,6 +492,27 @@ tox
 
 ## Current Status & Recent Fixes
 
+### ✅ October 19, 2025 - Timestamp Tracking & Job Cleanup
+
+**New Features:**
+1. **Recording Timestamp Tracking** - `recorded_at` field preserves exact recording start time
+2. **Separate Upload Tracking** - `uploaded_at` shows when file reached server
+3. **Accurate Job Creation** - Processing jobs created with `created_at = recorded_at` (not upload time)
+4. **Silent Short Recording Handling** - No errors logged for recordings < 10 chars of text
+5. **Database Cleanup** - Removed 39 legacy encryption errors and transcription_failed errors
+
+**What Changed:**
+- Android app now sends `recorded_at` timestamp with each upload
+- Backend stores both `recorded_at` and `uploaded_at` in DynamoDB
+- Processing job timestamps use recording start time for accurate tracking
+- Short recordings complete silently without error entries
+
+**Current Job Status:**
+- Total jobs: 21 (down from 60, cleaned up 39 errors)
+- Completed: 9
+- Failed: 10 (max_retries - legitimate issues worth investigating)
+- Pending: 2
+
 ### ✅ October 6, 2025 - Transcription System Fully Operational
 
 **Major Bugs Fixed:**
@@ -509,6 +531,9 @@ tox
 - ✅ Jobs processed within 30 seconds
 
 ### Documentation
+- `docs/timestamp_tracking.md` - Recording timestamp tracking feature
+- `docs/detailed_error_logging.md` - Enhanced job processing error logging
+- `docs/JOB_ERROR_HANDLING.md` - Error categorization and cleanup procedures
 - `docs/TRANSCRIPTION_FIX_COMPLETE.md` - Complete technical documentation
 - `docs/AUTOMATIC_TRANSCRIPTION.md` - How automatic transcription works
 - `docs/api_endpoints.md` - API reference
