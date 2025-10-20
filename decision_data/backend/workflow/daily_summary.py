@@ -18,8 +18,19 @@ def generate_summary(
     month: str,
     day: str,
     prompt_path: Path,
+    user_id: str = None,
+    recipient_email: str = None,
 ):
-    """Generate a summary of all transcripts on a given day."""
+    """Generate a summary of all transcripts on a given day.
+
+    Args:
+        year: Year (YYYY)
+        month: Month (MM)
+        day: Day (DD)
+        prompt_path: Path to the prompt file
+        user_id: Optional user ID (for filtering transcripts by user)
+        recipient_email: Optional recipient email (if not provided, uses GMAIL_ACCOUNT from config)
+    """
     # Step 1: Filter transcription by time
 
     mongo_client = MongoDBClient(
@@ -98,11 +109,16 @@ def generate_summary(
         date=date,
     )
 
+    # Use provided email or fallback to config
+    final_recipient_email = recipient_email or backend_config.GMAIL_ACCOUNT
+
     send_email(
         subject=subject,
         message_body=formated_message,
-        recipient_email=backend_config.GMAIL_ACCOUNT,
+        recipient_email=final_recipient_email,
     )
+
+    logger.info(f"[EMAIL] Daily summary sent to {final_recipient_email}")
 
     # Step 5: Save the summary to MongoDB
     mongo_client = MongoDBClient(

@@ -87,15 +87,14 @@ class SafeAudioProcessor:
             logger.error(f"[ERROR] Error getting pending jobs: {e}")
 
     def get_eligible_pending_jobs(self) -> List[dict]:
-        """Get pending jobs that are safe to process."""
+        """Get pending jobs that are safe to process (transcription and daily_summary)."""
         try:
-            # Query pending transcription jobs
+            # Query all pending jobs (both transcription and daily_summary)
             response = self.transcription_service.jobs_table.scan(
-                FilterExpression='#status = :status AND job_type = :job_type',
+                FilterExpression='#status = :status',
                 ExpressionAttributeNames={'#status': 'status'},
                 ExpressionAttributeValues={
-                    ':status': 'pending',
-                    ':job_type': 'transcription'
+                    ':status': 'pending'
                 }
             )
 
@@ -103,6 +102,7 @@ class SafeAudioProcessor:
             now = datetime.utcnow()
 
             for job in response['Items']:
+                # Check eligibility rules for both job types
                 if self.is_job_eligible(job, now):
                     eligible_jobs.append(job)
                 else:
@@ -160,13 +160,27 @@ class SafeAudioProcessor:
         return True
 
     async def process_single_job(self, job: dict):
-        """Process a single transcription job safely."""
+        """Process a single job (transcription or daily summary) safely."""
+        job_id = job['job_id']
+        user_id = job['user_id']
+        job_type = job.get('job_type', 'transcription')
+        retry_count = job.get('retry_count', 0)
+
+        logger.info(f"[AUDIO] Processing {job_type} job {job_id} (attempt {retry_count + 1}/{self.MAX_RETRIES}) for user {user_id}")
+
+        # Route to appropriate handler based on job type
+        if job_type == 'daily_summary':
+            await self.process_daily_summary_job(job)
+        else:
+            # Default to transcription job processing
+            await self.process_transcription_job(job)
+
+    async def process_transcription_job(self, job: dict):
+        """Process a transcription job."""
         job_id = job['job_id']
         user_id = job['user_id']
         audio_file_id = job.get('audio_file_id')
         retry_count = job.get('retry_count', 0)
-
-        logger.info(f"[AUDIO] Processing job {job_id} (attempt {retry_count + 1}/{self.MAX_RETRIES}) for user {user_id}")
 
         if not audio_file_id:
             self.mark_job_failed(job_id, "No audio file ID provided")
@@ -238,6 +252,89 @@ class SafeAudioProcessor:
             self.mark_job_failed(job_id, f"Processing timeout ({self.PROCESSING_TIMEOUT_MINUTES} minutes)")
         except Exception as e:
             logger.error(f"[ERROR] Job {job_id} processing failed (attempt {retry_count + 1}/{self.MAX_RETRIES}): {e}", exc_info=True)
+            # Don't mark as failed immediately - let it retry with backoff
+            raise
+
+    async def process_daily_summary_job(self, job: dict):
+        """Process a daily summary job."""
+        job_id = job['job_id']
+        user_id = job['user_id']
+        retry_count = job.get('retry_count', 0)
+
+        logger.info(f"[SUMMARY] Processing daily summary job {job_id} for user {user_id}")
+
+        try:
+            # Update retry count and timestamp
+            self.update_job_attempt(job_id, retry_count)
+
+            # Get user preferences for email and scheduling
+            try:
+                preferences_service = __import__('decision_data.backend.services.preferences_service', fromlist=['UserPreferencesService']).UserPreferencesService()
+                preferences = preferences_service.get_preferences(user_id)
+
+                if not preferences:
+                    self.mark_job_failed(job_id, "User preferences not found")
+                    return
+
+                if not preferences.enable_daily_summary:
+                    logger.info(f"[SUMMARY] Daily summary disabled for user {user_id}, marking job complete")
+                    self.transcription_service.update_job_status(job_id, 'completed')
+                    return
+
+                recipient_email = preferences.notification_email
+
+            except Exception as e:
+                logger.error(f"[ERROR] Failed to fetch user preferences: {e}", exc_info=True)
+                self.mark_job_failed(job_id, f"Failed to fetch preferences: {str(e)}")
+                return
+
+            # Generate today's summary (or yesterday's if requested)
+            # Default to yesterday since daily summary is typically sent the next day for previous day's activities
+            created_at = job.get('created_at')
+            if created_at:
+                job_date = datetime.fromisoformat(created_at.replace('Z', '+00:00') if isinstance(created_at, str) else created_at)
+            else:
+                job_date = datetime.utcnow()
+
+            # Use the previous day for summary (daily summary for yesterday's activities)
+            summary_date = job_date - timedelta(days=1)
+            year = summary_date.strftime('%Y')
+            month = summary_date.strftime('%m')
+            day = summary_date.strftime('%d')
+
+            logger.info(f"[SUMMARY] Generating summary for {year}-{month}-{day}")
+
+            # Process with timeout protection
+            start_time = time.time()
+            try:
+                from decision_data.backend.workflow.daily_summary import generate_summary
+                from pathlib import Path
+
+                prompt_path = Path(backend_config.DAILY_SUMMAYR_PROMPT_PATH)
+
+                await asyncio.wait_for(
+                    asyncio.to_thread(
+                        generate_summary,
+                        year, month, day, prompt_path,
+                        user_id, recipient_email
+                    ),
+                    timeout=self.PROCESSING_TIMEOUT_MINUTES * 60
+                )
+
+                processing_time = time.time() - start_time
+                logger.info(f"[SUMMARY] Daily summary job {job_id} completed successfully in {processing_time:.1f}s")
+                logger.info(f"[SUCCESS] Daily summary sent to {recipient_email}")
+                self.transcription_service.update_job_status(job_id, 'completed')
+
+            except asyncio.TimeoutError:
+                logger.error(f"[TIMEOUT] Daily summary job {job_id} timed out after {self.PROCESSING_TIMEOUT_MINUTES} minutes")
+                self.mark_job_failed(job_id, f"Summary generation timeout ({self.PROCESSING_TIMEOUT_MINUTES} minutes)")
+            except Exception as e:
+                logger.error(f"[ERROR] Daily summary generation failed: {e}", exc_info=True)
+                raise
+
+        except Exception as e:
+            logger.error(f"[ERROR] Daily summary job {job_id} failed (attempt {retry_count + 1}/{self.MAX_RETRIES}): {e}", exc_info=True)
             # Don't mark as failed immediately - let it retry with backoff
             raise
 
