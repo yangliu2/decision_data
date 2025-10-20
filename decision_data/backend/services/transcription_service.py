@@ -378,9 +378,20 @@ class UserTranscriptionService:
 
             jobs = []
             for item in response['Items']:
+                # Parse created_at from ISO string
+                # Handle both with and without 'Z' suffix for Java compatibility
+                created_at_str = item['created_at']
+                if not created_at_str.endswith(('Z', '+00:00')):
+                    created_at_str += 'Z'  # Add 'Z' for UTC timezone awareness
+                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+
+                # Parse completed_at (optional)
                 completed_at = None
                 if 'completed_at' in item:
-                    completed_at = datetime.fromisoformat(item['completed_at'])
+                    completed_at_str = item['completed_at']
+                    if not completed_at_str.endswith(('Z', '+00:00')):
+                        completed_at_str += 'Z'  # Add 'Z' for UTC timezone awareness
+                    completed_at = datetime.fromisoformat(completed_at_str.replace('Z', '+00:00'))
 
                 job = ProcessingJob(
                     job_id=item['job_id'],
@@ -388,7 +399,7 @@ class UserTranscriptionService:
                     job_type=item['job_type'],
                     audio_file_id=item.get('audio_file_id'),
                     status=item['status'],
-                    created_at=datetime.fromisoformat(item['created_at']),
+                    created_at=created_at,
                     completed_at=completed_at,
                     error_message=item.get('error_message')
                 )
