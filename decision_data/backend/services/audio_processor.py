@@ -150,7 +150,6 @@ class SafeAudioProcessor:
 
                 # Ensure timezone-aware comparison
                 if last_attempt_time.tzinfo is None:
-                    from datetime import timezone
                     last_attempt_time = last_attempt_time.replace(tzinfo=timezone.utc)
 
                 time_since_last = (now - last_attempt_time).total_seconds() / 60
