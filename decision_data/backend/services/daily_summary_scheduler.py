@@ -79,7 +79,7 @@ class DailySummaryScheduler:
             current_hour = now.hour
             current_minute = now.minute
 
-            logger.debug(f"[SCHEDULER] Checking for users to send daily summaries (current UTC time: {current_hour:02d}:{current_minute:02d})")
+            logger.info(f"[SCHEDULER] Checking for users to send daily summaries (current UTC time: {current_hour:02d}:{current_minute:02d})")
 
             # Get all users with daily summary enabled
             try:
@@ -89,10 +89,10 @@ class DailySummaryScheduler:
                 return
 
             if not users_to_summarize:
-                logger.debug("[SCHEDULER] No users with daily summary enabled")
+                logger.info("[SCHEDULER] No users with daily summary enabled")
                 return
 
-            logger.debug(f"[SCHEDULER] Checking {len(users_to_summarize)} users with daily summary enabled")
+            logger.info(f"[SCHEDULER] Checking {len(users_to_summarize)} users with daily summary enabled")
 
             # Track how many jobs we create this cycle
             jobs_created = 0
@@ -105,7 +105,7 @@ class DailySummaryScheduler:
                     # Check if we already scheduled for this user today
                     last_scheduled_date = self.scheduled_today.get(user_id)
                     if last_scheduled_date == current_date:
-                        logger.debug(f"[SCHEDULER] Daily summary already scheduled for user {user_id} today")
+                        logger.info(f"[SCHEDULER] Daily summary already scheduled for user {user_id} today")
                         continue
 
                     # Parse the preferred time (format: "HH:MM")
