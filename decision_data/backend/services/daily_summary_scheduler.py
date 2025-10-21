@@ -16,6 +16,7 @@ import logging
 
 from decision_data.backend.services.transcription_service import UserTranscriptionService
 from decision_data.backend.services.preferences_service import UserPreferencesService
+from decision_data.backend.services.daily_summary_tracking_service import DailySummaryTrackingService
 from decision_data.backend.config.config import backend_config
 
 logger = logging.getLogger(__name__)
@@ -27,10 +28,12 @@ class DailySummaryScheduler:
     def __init__(self):
         self.transcription_service = UserTranscriptionService()
         self.preferences_service = UserPreferencesService()
+        self.tracking_service = DailySummaryTrackingService()
         self.is_running = False
 
-        # Track which users have had summaries scheduled today
+        # Track which users have had summaries scheduled today (in-memory cache)
         # Format: {user_id: date_scheduled}
+        # This is populated from DB on startup and updated as jobs are created
         self.scheduled_today = {}
 
         # Only check schedule every 5 minutes (not every loop iteration)
@@ -41,6 +44,18 @@ class DailySummaryScheduler:
         """Start the daily summary scheduler background task."""
         logger.info("[SCHEDULER] Starting daily summary scheduler...")
         logger.info(f"[SCHEDULER] Will check for scheduled summaries every {self.schedule_check_interval_seconds} seconds")
+
+        # Load today's scheduled summaries from database on startup
+        logger.info("[SCHEDULER] Loading today's scheduled summaries from persistent storage...")
+        try:
+            today_scheduled = await asyncio.to_thread(
+                self.tracking_service.reset_daily_tracking
+            )
+            self.scheduled_today.update(today_scheduled)
+            logger.info(f"[SCHEDULER] Loaded {len(today_scheduled)} summaries from database")
+        except Exception as e:
+            logger.error(f"[SCHEDULER] Failed to load today's summaries from DB: {e}", exc_info=True)
+            logger.warning("[SCHEDULER] Proceeding with empty cache (may create duplicate summaries if DB is unavailable)")
 
         self.is_running = True
         while self.is_running:
@@ -133,11 +148,23 @@ class DailySummaryScheduler:
                             job_type='daily_summary'
                         )
 
-                        # Mark that we've scheduled for this user today
+                        # Mark that we've scheduled for this user today (in memory)
                         self.scheduled_today[user_id] = current_date
 
-                        logger.info(f"[SCHEDULER] Created auto daily summary job {job_id} for user {user_id}")
-                        jobs_created += 1
+                        # Persist the tracking record to database
+                        date_str = current_date.strftime('%Y%m%d')
+                        tracking_success = await asyncio.to_thread(
+                            self.tracking_service.mark_summary_scheduled,
+                            user_id, job_id, date_str
+                        )
+
+                        if tracking_success:
+                            logger.info(f"[SCHEDULER] Created auto daily summary job {job_id} for user {user_id}")
+                            jobs_created += 1
+                        else:
+                            logger.error(f"[SCHEDULER] Failed to track summary for user {user_id}, but job created: {job_id}")
+                            # Still count it since the job was created, just tracking failed
+                            jobs_created += 1
 
                     except Exception as e:
                         logger.error(f"[SCHEDULER] Failed to create daily summary job for user {user_id}: {e}", exc_info=True)
