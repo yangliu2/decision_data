@@ -3,11 +3,12 @@ from openai import OpenAI
 from pathlib import Path
 from pydantic import ValidationError
 from datetime import datetime, timedelta
-from decision_data.backend.data.mongodb_client import MongoDBClient
+import boto3
+from decimal import Decimal
+import uuid
 from decision_data.backend.config.config import backend_config
-from decision_data.data_structure.models import Transcript
-from decision_data.backend.utils.logger import setup_logger
 from decision_data.data_structure.models import DailySummary
+from decision_data.backend.utils.logger import setup_logger
 from decision_data.ui.email.email import send_email, format_message
 
 setup_logger()
@@ -31,43 +32,52 @@ def generate_summary(
         user_id: Optional user ID (for filtering transcripts by user)
         recipient_email: Optional recipient email (if not provided, uses GMAIL_ACCOUNT from config)
     """
-    # Step 1: Filter transcription by time
+    # Step 1: Query transcripts from DynamoDB
 
-    mongo_client = MongoDBClient(
-        uri=backend_config.MONGODB_URI,
-        db=backend_config.MONGODB_DB_NAME,
-        collection=backend_config.MONGODB_TRANSCRIPTS_COLLECTION_NAME,
+    dynamodb = boto3.resource(
+        'dynamodb',
+        region_name=backend_config.REGION_NAME,
+        aws_access_key_id=backend_config.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=backend_config.AWS_SECRET_ACCESS_KEY
     )
 
-    date_field = "created_utc"
+    transcripts_table = dynamodb.Table('panzoto-transcripts')
 
     # Create datetime objects for start and end of the day
     start_datetime = datetime(int(year), int(month), int(day)) + timedelta(days=-1)
     end_datetime = start_datetime + timedelta(days=1)
 
-    # Format the datetime objects to the required string format
-    start_date_str = start_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end_date_str = end_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Format the datetime objects to the required ISO format
+    start_date_str = start_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+    end_date_str = end_datetime.strftime("%Y-%m-%dT%H:%M:%S")
 
-    filtered_data = mongo_client.get_records_between_dates(
-        date_field=date_field,
-        start_date_str=start_date_str,
-        end_date_str=end_date_str,
-    )
-    mongo_client.close()
+    # Query transcripts from DynamoDB within date range
+    try:
+        response = transcripts_table.scan(
+            FilterExpression='created_at BETWEEN :start AND :end' +
+                           (' AND user_id = :user_id' if user_id else ''),
+            ExpressionAttributeValues={
+                ':start': start_date_str,
+                ':end': end_date_str,
+                **(
+                    {':user_id': user_id} if user_id else {}
+                )
+            }
+        )
+        filtered_data = response.get('Items', [])
+    except Exception as e:
+        logger.error(f"Failed to query transcripts from DynamoDB: {e}")
+        return
 
-    logger.debug(f"number of transcript on day {day}: {len(filtered_data)}")
+    logger.debug(f"number of transcripts on day {day}: {len(filtered_data)}")
 
     # Step 2: Combine all transcript into a single text
 
-    try:
-        filtered_objects = [Transcript(**x) for x in filtered_data]
-    except ValidationError:
-        logger.debug(f"filtered data: {filtered_data}")
-        logger.error("Failed to parse the transcript data. Probably missing fields.")
+    if not filtered_data:
+        logger.info(f"No transcripts found for {year}-{month}-{day}")
         return
 
-    transcripts = [x.transcript for x in filtered_objects]
+    transcripts = [x['transcript'] for x in filtered_data]
     combined_text = " ".join(transcripts)
     # logger.debug(f"combined text: {combined_text}")
 
@@ -120,17 +130,23 @@ def generate_summary(
 
     logger.info(f"[EMAIL] Daily summary sent to {final_recipient_email}")
 
-    # Step 5: Save the summary to MongoDB
-    mongo_client = MongoDBClient(
-        uri=backend_config.MONGODB_URI,
-        db=backend_config.MONGODB_DB_NAME,
-        collection=backend_config.MONGODB_DAILY_SUMMARY_COLLECTION_NAME,
-    )
-    record = parsed_response.model_dump()
-    record[date_field] = date
-    mongo_client.insert_daily_summary(summary_data=[record])
-    logger.info(f"Inserted one summary on day: {start_date_str}.")
-    mongo_client.close()
+    # Step 5: Save the summary to DynamoDB
+    try:
+        summaries_table = dynamodb.Table('panzoto-daily-summaries')
+        summary_record = parsed_response.model_dump()
+        summary_record['summary_id'] = str(uuid.uuid4())
+        summary_record['date'] = date
+        summary_record['created_at'] = datetime.utcnow().isoformat()
+
+        # Only include user_id if provided (for filtering)
+        if user_id:
+            summary_record['user_id'] = user_id
+
+        summaries_table.put_item(Item=summary_record)
+        logger.info(f"Saved daily summary to DynamoDB for {date}")
+    except Exception as e:
+        logger.error(f"Failed to save summary to DynamoDB: {e}")
+        raise
 
 
 def main():
