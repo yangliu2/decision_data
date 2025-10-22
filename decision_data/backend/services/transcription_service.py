@@ -20,6 +20,7 @@ from decision_data.backend.transcribe.whisper import transcribe_from_local, get_
 from decision_data.backend.services.audio_service import AudioFileService
 from decision_data.backend.services.user_service import UserService
 from decision_data.backend.utils.secrets_manager import secrets_manager
+from decision_data.backend.utils.aes_encryption import aes_encryption
 from decision_data.data_structure.models import (
     TranscriptUser,
     ProcessingJob,
@@ -200,21 +201,38 @@ class UserTranscriptionService:
 
     def save_transcript_to_db(self, user_id: str, audio_file_id: str, transcript: str,
                              duration: float, s3_key: str) -> str:
-        """Save transcript to DynamoDB."""
+        """Save transcript to DynamoDB with encryption."""
         transcript_id = str(uuid.uuid4())
         now = datetime.utcnow()
+
+        # Get user's encryption key and encrypt transcript
+        try:
+            encryption_key = secrets_manager.get_user_encryption_key(user_id)
+            if not encryption_key:
+                error_msg = f"Encryption key not found for user {user_id}"
+                logger.error(f"[ENCRYPT ERROR] {error_msg}")
+                raise Exception(error_msg)
+
+            # Encrypt transcript using AES-256-GCM
+            encrypted_transcript_b64 = aes_encryption.encrypt_text(transcript, encryption_key)
+            logger.info(f"[ENCRYPT] Transcript encrypted ({len(transcript)} bytes plaintext)")
+
+        except Exception as e:
+            logger.error(f"[ERROR] Failed to encrypt transcript: {e}", exc_info=True)
+            raise
 
         item = {
             'transcript_id': transcript_id,
             'user_id': user_id,
             'audio_file_id': audio_file_id,
-            'transcript': transcript,
+            'transcript': encrypted_transcript_b64,  # Store encrypted (base64)
             'length_in_seconds': Decimal(str(duration)),  # Convert float to Decimal for DynamoDB
             's3_key': s3_key,
             'created_at': now.isoformat()
         }
 
         self.transcripts_table.put_item(Item=item)
+        logger.info(f"[SAVE] Encrypted transcript saved to DynamoDB: {transcript_id}")
         return transcript_id
 
     def process_audio_for_existing_job(self, job_id: str, user_id: str, audio_file_id: str) -> Optional[str]:
@@ -336,8 +354,14 @@ class UserTranscriptionService:
         return self.process_audio_for_existing_job(job_id, user_id, audio_file_id)
 
     def get_user_transcripts(self, user_id: str, limit: int = 50) -> list[TranscriptUser]:
-        """Get user's transcripts."""
+        """Get user's transcripts (decrypted)."""
         try:
+            # Get user's encryption key for decryption
+            encryption_key = secrets_manager.get_user_encryption_key(user_id)
+            if not encryption_key:
+                logger.error(f"[ERROR] Encryption key not found for user {user_id}")
+                return []
+
             response = self.transcripts_table.query(
                 IndexName='user-transcripts-index',
                 KeyConditionExpression='user_id = :user_id',
@@ -348,21 +372,32 @@ class UserTranscriptionService:
 
             transcripts = []
             for item in response['Items']:
-                transcript = TranscriptUser(
-                    transcript_id=item['transcript_id'],
-                    user_id=item['user_id'],
-                    audio_file_id=item['audio_file_id'],
-                    transcript=item['transcript'],
-                    length_in_seconds=float(item['length_in_seconds']),
-                    s3_key=item['s3_key'],
-                    created_at=datetime.fromisoformat(item['created_at'])
-                )
-                transcripts.append(transcript)
+                try:
+                    # Decrypt transcript using user's encryption key
+                    encrypted_transcript_b64 = item['transcript']
+                    decrypted_transcript = aes_encryption.decrypt_text(encrypted_transcript_b64, encryption_key)
+                    logger.info(f"[DECRYPT] Transcript decrypted for user {user_id}")
+
+                    transcript = TranscriptUser(
+                        transcript_id=item['transcript_id'],
+                        user_id=item['user_id'],
+                        audio_file_id=item['audio_file_id'],
+                        transcript=decrypted_transcript,
+                        length_in_seconds=float(item['length_in_seconds']),
+                        s3_key=item['s3_key'],
+                        created_at=datetime.fromisoformat(item['created_at'])
+                    )
+                    transcripts.append(transcript)
+
+                except Exception as decrypt_error:
+                    logger.error(f"[ERROR] Failed to decrypt transcript {item['transcript_id']}: {decrypt_error}", exc_info=True)
+                    # Skip this transcript if decryption fails
+                    continue
 
             return transcripts
 
         except Exception as e:
-            print(f"Error getting user transcripts: {e}")
+            logger.error(f"[ERROR] Error getting user transcripts: {e}", exc_info=True)
             return []
 
     def get_processing_jobs(self, user_id: str, limit: int = 20) -> list[ProcessingJob]:
