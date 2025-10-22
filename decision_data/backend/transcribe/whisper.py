@@ -7,14 +7,12 @@ import wave
 import time
 from datetime import datetime, timezone
 from decision_data.backend.config.config import backend_config
-from decision_data.backend.data.mongodb_client import MongoDBClient
 from decision_data.backend.transcribe.aws_s3 import (
     download_from_s3,
     upload_to_s3,
     remove_s3_file,
     list_s3_files,
 )
-from decision_data.data_structure.models import Transcript
 from decision_data.backend.utils.logger import setup_logger
 
 setup_logger()
@@ -134,35 +132,6 @@ def get_utc_datetime() -> str:
     return utc_datetime
 
 
-def save_to_mongodb(
-    transcript: str,
-    duration: float,
-    original_audio_path: str,
-):
-    """Save transcripts to mongodb
-
-    :param transcript: transcript to be saved
-    :type transcript: str
-    :param duration: duration of the original audio
-    :type duration: float
-    """
-    record = Transcript(
-        transcript=transcript,
-        length_in_seconds=duration,
-        original_audio_path=original_audio_path,
-        created_utc=get_utc_datetime(),
-    )
-
-    mongo_client = MongoDBClient(
-        uri=backend_config.MONGODB_URI,
-        db=backend_config.MONGODB_DB_NAME,
-        collection=backend_config.MONGODB_TRANSCRIPTS_COLLECTION_NAME,
-    )
-
-    mongo_client.insert_transcripts(transcripts_data=[record.model_dump()])
-    logger.info("Inserted one transcript.")
-
-
 def transcribe_and_upload_one(
     bucket_name: str,
     audio_s3_folder: str,
@@ -230,12 +199,8 @@ def transcribe_and_upload_one(
         transcript_file_name = f"{local_audio_path.stem}_transcript.txt"
         transcript_s3_key = f"{transcripts_s3_folder}/{transcript_file_name}"
 
-        # Save to mongodb
-        save_to_mongodb(
-            transcript=transcript,
-            duration=duration,
-            original_audio_path=original_audio_path,
-        )
+        # NOTE: Transcripts are now saved to DynamoDB only (via transcription_service)
+        # MongoDB has been removed entirely for data privacy and security
 
         # Step 5: Upload the transcript to the destination S3 bucket
         upload_to_s3(

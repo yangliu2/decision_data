@@ -14,9 +14,6 @@ from decision_data.data_structure.models import (
     UserPreferences, UserPreferencesCreate, UserPreferencesUpdate,
     TranscriptUser, ProcessingJob
 )
-from decision_data.backend.data.save_reddit_posts import (
-    save_reddit_story_to_mongo,
-)
 from decision_data.backend.services.user_service import UserService
 from decision_data.backend.config.config import backend_config
 from decision_data.backend.services.audio_service import AudioFileService
@@ -213,45 +210,6 @@ async def get_stories(
         return stories
     else:
         raise HTTPException(status_code=400, detail="Source not supported")
-
-
-@app.post("/api/save_stories")
-async def save_stories_endpoint(
-    background_tasks: BackgroundTasks,
-    num_posts: int = Query(10, ge=1, le=1000),
-):
-    """
-    Initiate background task to save Reddit stories to MongoDB.
-
-    This endpoint triggers a background task that fetches a specified number
-    of Reddit posts and saves them to a MongoDB database. The operation is
-    performed asynchronously to ensure that the API remains responsive.
-
-    Args:
-        background_tasks (BackgroundTasks): A FastAPI BackgroundTasks instance
-            used to manage background operations.
-        num_posts (int, optional): The number of Reddit posts to fetch and
-            save. Must be between 1 and 1000. Defaults to 10.
-
-    Returns:
-        dict: A confirmation message indicating that the saving process has
-            been initiated.
-
-    Example:
-        ```python
-        import requests
-
-        response = requests.post(
-            "http://127.0.0.1:8000/api/save_stories",
-            params={"num_posts": 50}
-        )
-        print(response.json())  # Output: {"message": "Saving stories in the
-        background."}
-        ```
-    """
-    background_tasks.add_task(save_reddit_story_to_mongo, num_posts)
-    return {"message": "Saving stories in the background."}
-
 
 # User Management Endpoints
 

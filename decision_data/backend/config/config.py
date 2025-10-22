@@ -13,13 +13,6 @@ class BackendConfig(BaseSettings):
     REDDIT_CLIENT_SECRET: str = ""
     REDDIT_USER_AGENT: str = ""
 
-    # MongoDB settings
-    MONGODB_URI: str = ""
-    MONGODB_DB_NAME: str = ""
-    MONGODB_REDDIT_COLLECTION_NAME: str = ""
-    MONGODB_TRANSCRIPTS_COLLECTION_NAME: str = ""
-    MONGODB_DAILY_SUMMARY_COLLECTION_NAME: str = ""
-
     # openai
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
