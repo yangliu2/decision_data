@@ -401,6 +401,53 @@ async def delete_audio_file(
         raise HTTPException(status_code=500, detail="Failed to delete audio file")
 
 
+# S3 Presigned URL Endpoint
+
+@app.get("/api/presigned-url")
+async def get_presigned_url(key: str = Query(..., description="S3 object key")):
+    """Generate presigned URL for S3 upload.
+
+    This endpoint generates a presigned URL that allows direct upload to S3
+    without exposing AWS credentials. The Android app uses this to upload
+    encrypted audio files directly to S3.
+
+    Args:
+        key: S3 object key (e.g., "audio_upload/user-id/filename.3gp_encrypted")
+
+    Returns:
+        JSON with presigned URL for PUT request
+        Example: {"url": "https://s3.amazonaws.com/...?AWSAccessKeyId=..."}
+    """
+    try:
+        import boto3
+
+        # Create S3 client
+        s3_client = boto3.client(
+            's3',
+            region_name=backend_config.REGION_NAME,
+            aws_access_key_id=backend_config.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=backend_config.AWS_SECRET_ACCESS_KEY
+        )
+
+        # Generate presigned URL valid for 15 minutes
+        presigned_url = s3_client.generate_presigned_url(
+            ClientMethod='put_object',
+            Params={
+                'Bucket': backend_config.AWS_S3_BUCKET_NAME,
+                'Key': key,
+                'ContentType': 'application/octet-stream'
+            },
+            ExpiresIn=900  # 15 minutes
+        )
+
+        logging.info(f"Generated presigned URL for key: {key}")
+        return {"url": presigned_url}
+
+    except Exception as e:
+        logging.error(f"Failed to generate presigned URL for key '{key}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL: {str(e)}")
+
+
 # User Preferences Endpoints
 
 @app.post("/api/user/preferences", response_model=UserPreferences)
