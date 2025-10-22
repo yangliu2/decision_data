@@ -681,6 +681,12 @@ find . -path "*/.tox" -prune -o -type f -name "*.py" -print
 - [ ] Mobile push notifications
 - [ ] Transcript editing in app
 - [ ] Long-form audio recording improvements (gap prevention, overlap-based chunking)
+- [ ] **User Decision Profile System** (NEW FEATURE)
+  - Analyze transcripts to extract decisions and stories
+  - Build user decision profiles based on patterns
+  - Track decision patterns over time
+  - Visualize decision-making trends
+  - See decision outcomes and learn from patterns
 
 ### Low Priority
 - [ ] Multi-language transcription support
