@@ -96,6 +96,26 @@ Panzoto/ (Android)
 
 ---
 
+## One-Time Scripts (decision_data/scripts/)
+
+Before creating new scripts, check `decision_data/scripts/` for existing patterns and reuse them.
+
+**Key scripts:**
+- `migrate_encrypt_transcripts.py` - Encrypt existing plaintext transcripts (16 transcripts → encrypted)
+- `migrate_recorded_at.py` - Add recording timestamps to old audio files
+- `migrate_job_timestamps.py` - Update job timestamps to match recording times
+- `cleanup_failed_jobs.py` - Remove failed jobs from DynamoDB
+- `check_audio_status.py` - Diagnostic: audit audio pipeline status
+
+**Pattern:**
+All one-time scripts should:
+1. Support `--dry-run` flag for testing
+2. Provide clear summary reports
+3. Handle errors gracefully (skip individual items, report at end)
+4. Live in `decision_data/scripts/` directory
+
+---
+
 ## What's Been Done (Summary)
 
 ### October 22, 2025 ✅
@@ -103,7 +123,14 @@ Panzoto/ (Android)
 - **Fixed:** Android app was hardcoded to broken AWS Lambda endpoint
 - **Fixed:** Completed MongoDB removal from daily_summary.py
 - **Cleaned:** Removed 3 failed jobs from DynamoDB
-- **Status:** Audio pipeline now 100% operational
+- **Implemented:** Transcript encryption in DynamoDB
+  - Created reusable `AESEncryption` utility class (`backend/utils/aes_encryption.py`)
+  - Updated `transcription_service.py` to encrypt transcripts before storing
+  - Transcripts encrypted with user's AES-256-GCM key (same as audio)
+  - Only plaintext returned to users (decrypted on read)
+  - Encrypted 16 existing plaintext transcripts via migration script
+  - Service provider cannot see plaintext transcripts in database
+- **Status:** Audio pipeline 100% operational, transcripts encrypted at rest
 
 ### October 19, 2025 ✅
 - Added timestamp tracking (`recorded_at` vs `uploaded_at`)
