@@ -288,8 +288,7 @@ class SafeAudioProcessor:
                 self.mark_job_failed(job_id, f"Failed to fetch preferences: {str(e)}")
                 return
 
-            # Generate today's summary (or yesterday's if requested)
-            # Default to yesterday since daily summary is typically sent the next day for previous day's activities
+            # Generate yesterday's summary (daily summary is sent next morning for previous day)
             created_at = job.get('created_at')
             if created_at:
                 job_date = datetime.fromisoformat(created_at.replace('Z', '+00:00') if isinstance(created_at, str) else created_at)
@@ -302,7 +301,7 @@ class SafeAudioProcessor:
             month = summary_date.strftime('%m')
             day = summary_date.strftime('%d')
 
-            logger.info(f"[SUMMARY] Generating summary for {year}-{month}-{day}")
+            logger.info(f"[SUMMARY] Generating summary for {year}-{month}-{day} (timezone offset: {preferences.timezone_offset_hours})")
 
             # Process with timeout protection
             start_time = time.time()
@@ -316,7 +315,7 @@ class SafeAudioProcessor:
                     asyncio.to_thread(
                         generate_summary,
                         year, month, day, prompt_path,
-                        user_id, recipient_email
+                        user_id, recipient_email, preferences.timezone_offset_hours
                     ),
                     timeout=self.PROCESSING_TIMEOUT_MINUTES * 60
                 )

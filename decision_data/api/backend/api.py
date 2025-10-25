@@ -241,7 +241,8 @@ async def register(request: Request, user_data: UserCreate):
                 notification_email=user_data.email,
                 enable_daily_summary=False,  # Off by default (user can enable in settings)
                 enable_transcription=True,   # ON by default - automatic transcription
-                summary_time_utc="08:00"     # 8 AM UTC default
+                summary_time_local="08:00",  # 8 AM local time default
+                timezone_offset_hours=0      # UTC by default (user can set their timezone)
             )
             preferences_service.create_preferences(user.user_id, default_prefs)
             logging.info(f"Created default preferences for user {user.user_id} with transcription ENABLED")

@@ -43,7 +43,8 @@ class UserPreferencesService:
                 'notification_email': preferences_data.notification_email,
                 'enable_daily_summary': preferences_data.enable_daily_summary,
                 'enable_transcription': preferences_data.enable_transcription,
-                'summary_time_utc': preferences_data.summary_time_utc,
+                'summary_time_local': preferences_data.summary_time_local,
+                'timezone_offset_hours': preferences_data.timezone_offset_hours,
                 'created_at': Decimal(str(now.timestamp())),
                 'updated_at': Decimal(str(now.timestamp()))
             }
@@ -55,7 +56,8 @@ class UserPreferencesService:
                 notification_email=preferences_data.notification_email,
                 enable_daily_summary=preferences_data.enable_daily_summary,
                 enable_transcription=preferences_data.enable_transcription,
-                summary_time_utc=preferences_data.summary_time_utc,
+                summary_time_local=preferences_data.summary_time_local,
+                timezone_offset_hours=preferences_data.timezone_offset_hours,
                 created_at=now,
                 updated_at=now
             )
@@ -76,7 +78,8 @@ class UserPreferencesService:
                     notification_email=item['notification_email'],
                     enable_daily_summary=item['enable_daily_summary'],
                     enable_transcription=item['enable_transcription'],
-                    summary_time_utc=item['summary_time_utc'],
+                    summary_time_local=item.get('summary_time_local', '09:00'),
+                    timezone_offset_hours=item.get('timezone_offset_hours', 0),
                     created_at=datetime.fromtimestamp(float(item['created_at'])),
                     updated_at=datetime.fromtimestamp(float(item['updated_at']))
                 )
@@ -107,9 +110,13 @@ class UserPreferencesService:
                 update_expr += ", enable_transcription = :transcription"
                 expr_values[":transcription"] = update_data.enable_transcription
 
-            if update_data.summary_time_utc is not None:
-                update_expr += ", summary_time_utc = :summary_time"
-                expr_values[":summary_time"] = update_data.summary_time_utc
+            if update_data.summary_time_local is not None:
+                update_expr += ", summary_time_local = :summary_time"
+                expr_values[":summary_time"] = update_data.summary_time_local
+
+            if update_data.timezone_offset_hours is not None:
+                update_expr += ", timezone_offset_hours = :timezone"
+                expr_values[":timezone"] = update_data.timezone_offset_hours
 
             self.table.update_item(
                 Key={'user_id': user_id},
@@ -149,7 +156,8 @@ class UserPreferencesService:
                     notification_email=item['notification_email'],
                     enable_daily_summary=item['enable_daily_summary'],
                     enable_transcription=item['enable_transcription'],
-                    summary_time_utc=item['summary_time_utc'],
+                    summary_time_local=item.get('summary_time_local', '09:00'),
+                    timezone_offset_hours=item.get('timezone_offset_hours', 0),
                     created_at=datetime.fromtimestamp(float(item['created_at'])),
                     updated_at=datetime.fromtimestamp(float(item['updated_at']))
                 )

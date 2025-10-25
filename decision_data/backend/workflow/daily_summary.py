@@ -27,6 +27,7 @@ def generate_summary(
     prompt_path: Path,
     user_id: str = None,
     recipient_email: str = None,
+    timezone_offset_hours: int = 0,
 ):
     """Generate a summary of all transcripts on a given day.
 
@@ -37,6 +38,7 @@ def generate_summary(
         prompt_path: Path to the prompt file
         user_id: Optional user ID (for filtering transcripts by user)
         recipient_email: Optional recipient email (if not provided, uses GMAIL_ACCOUNT from config)
+        timezone_offset_hours: User's timezone offset from UTC (e.g., -6 for CST)
     """
     # Step 1: Query transcripts from DynamoDB
 
@@ -49,8 +51,12 @@ def generate_summary(
 
     transcripts_table = dynamodb.Table('panzoto-transcripts')
 
-    # Create datetime objects for start and end of the day
-    start_datetime = datetime(int(year), int(month), int(day)) + timedelta(days=-1)
+    # Create datetime objects for the requested day in UTC
+    # When user requests summary for day D in their local timezone,
+    # we need to query from D 00:00 in their timezone to D+1 00:00 in their timezone
+    # which equals D minus offset 00:00 UTC to D+1 minus offset 00:00 UTC
+    local_date = datetime(int(year), int(month), int(day))
+    start_datetime = local_date + timedelta(hours=-timezone_offset_hours)
     end_datetime = start_datetime + timedelta(days=1)
 
     # Format the datetime objects to the required ISO format

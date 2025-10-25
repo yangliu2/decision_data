@@ -1,47 +1,89 @@
 # Cloudflare SSL Configuration Guide
 
-## Current Status: 522 Connection Timeout Error
+## Problem: Dual Domain SSL Conflict
 
-**Issue**: Cloudflare is trying to connect to your server via HTTPS, but nginx is only configured for HTTP.
+Your system has **two domains with conflicting SSL requirements**:
 
-**Solution**: Configure Cloudflare SSL mode to match your server setup.
+1. **www.panzoto.com** (WordPress) - Requires "Full" SSL to avoid redirect loops
+2. **api.panzoto.com** (FastAPI) - Works with "Flexible" SSL (no cert on server)
 
-## Quick Fix: Flexible SSL Mode
+When you change global SSL mode to "Full", the API breaks. When you use "Flexible", WordPress breaks.
 
-### Step 1: Configure Cloudflare
+**Solution**: Use **Cloudflare Page Rules** to apply different SSL modes per subdomain.
+
+## Step-by-Step Fix
+
+### Step 1: Set Global SSL Mode to "Full" (for WordPress)
+
 1. Login to [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Select your domain: `panzoto.com`
+2. Select domain: `panzoto.com`
 3. Go to **SSL/TLS** → **Overview**
-4. Change SSL mode from "Full" to **"Flexible"**
-5. Save changes
+4. Set SSL/TLS encryption mode to **"Full"**
+5. Click **Save**
 
-### Step 2: Verify Setup
-After changing to Flexible mode, test:
+### Step 2: Create Page Rule for API (Exception)
+
+1. Go to **Rules** → **Page Rules** (or **Caching** → **Page Rules**)
+2. Click **Create Page Rule**
+3. Fill in:
+   - **URL**: `api.panzoto.com/*`
+   - Click **+ Add a Setting**
+   - Select **SSL** → **Flexible**
+4. Click **Save and Deploy**
+
+### Step 3: Verify Both Domains Work
 
 ```bash
-# This should work after the change:
+# Test WordPress (Full SSL)
+curl -I https://www.panzoto.com
+
+# Test API (Flexible SSL via Page Rule)
 curl https://api.panzoto.com/api/health
 ```
 
+### Expected Results:
+- ✅ `https://www.panzoto.com` - Works (Full SSL)
+- ✅ `https://api.panzoto.com/api/health` - Works (Flexible SSL via Page Rule)
+- ✅ No more ERR_TOO_MANY_REDIRECTS errors
+
+## Why You Need Page Rules
+
+### Domain-Specific SSL Requirements
+
+**WordPress (www.panzoto.com):**
+- Running on DigitalOcean App Platform with Let's Encrypt certificate
+- **Requires**: Full SSL mode (HTTPS to origin)
+- **Reason**: Avoids redirect loops (Flexible mode causes WordPress to redirect HTTP to HTTPS)
+
+**FastAPI API (api.panzoto.com):**
+- Running on DigitalOcean Droplet (206.189.185.129:8000) via Nginx reverse proxy
+- **Can use**: Flexible SSL mode (HTTP to origin)
+- **Reason**: No certificate needed on server (Cloudflare handles HTTPS from browser)
+
+### Solution: Page Rules
+Page Rules let you override the global SSL setting **per URL pattern**, so both domains work simultaneously.
+
 ## SSL Mode Comparison
 
-| Mode | Browser→Cloudflare | Cloudflare→Server | Certificate Required |
-|------|-------------------|-------------------|---------------------|
-| **Off** | HTTP | HTTP | None |
-| **Flexible** | HTTPS | HTTP | None |
-| **Full** | HTTPS | HTTPS | Self-signed OK |
-| **Full (Strict)** | HTTPS | HTTPS | Valid certificate required |
+| Mode | Browser→Cloudflare | Cloudflare→Server | Certificate Required | Use Case |
+|------|-------------------|-------------------|---------------------|----------|
+| **Off** | HTTP | HTTP | None | Development only |
+| **Flexible** | HTTPS | HTTP | None | **API Server (no cert)** |
+| **Full** | HTTPS | HTTPS | Self-signed OK | **WordPress + API** |
+| **Full (Strict)** | HTTPS | HTTPS | Valid only | High security |
 
 ## Current Server Configuration
 
-✅ **Working**:
-- Nginx proxy: Port 80 → 8000 (FastAPI)
-- Direct IP access: `http://206.189.185.129:8000/api/health`
-- Local connectivity: All services running
+**WordPress (App Platform):**
+- ✅ HTTPS certificate: Let's Encrypt (auto-renewed)
+- ✅ Nginx reverse proxy with HTTPS support
+- ✅ Requires "Full" SSL mode in Cloudflare
 
-❌ **Issue**:
-- Server only has HTTP (port 80), no HTTPS (port 443)
-- Cloudflare trying to connect via HTTPS gets 522 timeout
+**FastAPI API (Droplet):**
+- ✅ Nginx proxy: Port 80 → 8000 (FastAPI)
+- ✅ Direct IP access: `http://206.189.185.129:8000/api/health`
+- ❌ No HTTPS certificate on server (can't use "Full" SSL globally)
+- ✅ Works with "Flexible" SSL mode via Page Rule
 
 ## Security Assessment
 

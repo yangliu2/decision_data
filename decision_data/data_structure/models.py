@@ -72,7 +72,8 @@ class UserPreferences(BaseModel):
     notification_email: str
     enable_daily_summary: bool = True
     enable_transcription: bool = True
-    summary_time_utc: str = "09:00"  # Daily summary time in UTC (HH:MM format)
+    summary_time_local: str = "09:00"  # Daily summary time in user's local time (HH:MM format)
+    timezone_offset_hours: int = 0  # Offset from UTC in hours (e.g., -6 for CST)
     created_at: datetime
     updated_at: datetime
 
@@ -81,14 +82,16 @@ class UserPreferencesCreate(BaseModel):
     notification_email: str
     enable_daily_summary: Optional[bool] = True
     enable_transcription: Optional[bool] = True
-    summary_time_utc: Optional[str] = "09:00"
+    summary_time_local: Optional[str] = "09:00"  # User's local time
+    timezone_offset_hours: Optional[int] = 0  # Offset from UTC
 
 
 class UserPreferencesUpdate(BaseModel):
     notification_email: Optional[str] = None
     enable_daily_summary: Optional[bool] = None
     enable_transcription: Optional[bool] = None
-    summary_time_utc: Optional[str] = None
+    summary_time_local: Optional[str] = None
+    timezone_offset_hours: Optional[int] = None
 
 
 class ProcessingJob(BaseModel):
