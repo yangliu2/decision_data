@@ -9,9 +9,15 @@ import uuid
 from decision_data.backend.config.config import backend_config
 from decision_data.data_structure.models import DailySummary
 from decision_data.backend.utils.logger import setup_logger
+from decision_data.backend.utils.secrets_manager import SecretsManager
+from decision_data.backend.utils.aes_encryption import AESEncryption
 from decision_data.ui.email.email import send_email, format_message
 
 setup_logger()
+
+# Initialize encryption/decryption utilities
+secrets_manager = SecretsManager()
+aes_encryption = AESEncryption()
 
 
 def generate_summary(
@@ -71,9 +77,40 @@ def generate_summary(
 
     logger.debug(f"number of transcripts on day {day}: {len(filtered_data)}")
 
-    # Step 2: Combine all transcript into a single text
+    # Step 2: Decrypt all transcripts and combine into a single text
 
-    if not filtered_data:
+    decrypted_transcripts = []
+    encryption_key = None
+
+    try:
+        # Get encryption key once for the user
+        encryption_key = secrets_manager.get_user_encryption_key(user_id)
+        if not encryption_key:
+            logger.warning(f"[DECRYPT] No encryption key found for user {user_id}, using encrypted data")
+    except Exception as e:
+        logger.warning(f"[DECRYPT] Failed to get encryption key: {e}")
+
+    # Decrypt each transcript
+    for item in filtered_data:
+        try:
+            encrypted_transcript_b64 = item.get('transcript', '')
+
+            if encryption_key:
+                # Decrypt the transcript
+                decrypted_text = aes_encryption.decrypt_text(encrypted_transcript_b64, encryption_key)
+                decrypted_transcripts.append(decrypted_text)
+                logger.debug(f"[DECRYPT] Successfully decrypted transcript")
+            else:
+                # If we can't decrypt, use encrypted data as-is (will fail LLM processing)
+                decrypted_transcripts.append(encrypted_transcript_b64)
+                logger.debug(f"[DECRYPT] Using encrypted data (key unavailable)")
+        except Exception as decrypt_error:
+            logger.error(f"[DECRYPT] Failed to decrypt transcript: {decrypt_error}")
+            # Skip this transcript if decryption fails
+            continue
+
+    if not decrypted_transcripts:
+
         logger.info(f"No transcripts found for {year}-{month}-{day}, sending empty summary email")
 
         # Send email even when no transcripts found
@@ -102,9 +139,9 @@ def generate_summary(
 
         return
 
-    transcripts = [x['transcript'] for x in filtered_data]
-    combined_text = " ".join(transcripts)
-    # logger.debug(f"combined text: {combined_text}")
+    # Use decrypted transcripts for LLM processing
+    combined_text = " ".join(decrypted_transcripts)
+    logger.info(f"[SUMMARY] Combining {len(decrypted_transcripts)} decrypted transcripts for LLM")
 
     # Step 3: Summarize the text using LLM
     daily_summary_prompt = prompt_path.read_text()
