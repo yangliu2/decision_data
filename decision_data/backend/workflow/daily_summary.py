@@ -74,7 +74,32 @@ def generate_summary(
     # Step 2: Combine all transcript into a single text
 
     if not filtered_data:
-        logger.info(f"No transcripts found for {year}-{month}-{day}")
+        logger.info(f"No transcripts found for {year}-{month}-{day}, sending empty summary email")
+
+        # Send email even when no transcripts found
+        subject = "PANZOTO: Daily Summary"
+        date = f"{year}-{month}-{day}"
+        formated_message = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <h2>Daily Summary for {date}</h2>
+                <p>No conversations recorded for this day.</p>
+            </body>
+        </html>
+        """
+
+        final_recipient_email = recipient_email or backend_config.GMAIL_ACCOUNT
+
+        try:
+            send_email(
+                subject=subject,
+                message_body=formated_message,
+                recipient_email=final_recipient_email,
+            )
+            logger.info(f"[EMAIL] Empty summary sent to {final_recipient_email}")
+        except Exception as e:
+            logger.error(f"Failed to send empty summary email: {e}")
+
         return
 
     transcripts = [x['transcript'] for x in filtered_data]

@@ -34,7 +34,11 @@ class BackendConfig(BaseSettings):
     # Authentication
     SECRET_KEY: str = "your-secret-key-change-in-production"
 
-    # Google voice
+    # Email Configuration
+    EMAIL_SENDER: str = "support@panzoto.com"
+    EMAIL_PROVIDER: str = "aws_ses"  # "aws_ses" or "gmail"
+
+    # Gmail settings (legacy, kept for backward compatibility)
     GOOGLE_APP_PASSWORD: str = ""
     PHONE_NUMBER: str = ""
     GMAIL_ACCOUNT: str = ""
