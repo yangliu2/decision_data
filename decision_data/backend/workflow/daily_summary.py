@@ -88,7 +88,7 @@ def generate_summary(
         </html>
         """
 
-        final_recipient_email = recipient_email or backend_config.GMAIL_ACCOUNT
+        final_recipient_email = recipient_email
 
         try:
             send_email(
@@ -144,8 +144,8 @@ def generate_summary(
         date=date,
     )
 
-    # Use provided email or fallback to config
-    final_recipient_email = recipient_email or backend_config.GMAIL_ACCOUNT
+    # Use provided email (required for sending)
+    final_recipient_email = recipient_email
 
     send_email(
         subject=subject,
