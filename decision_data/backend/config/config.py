@@ -34,14 +34,8 @@ class BackendConfig(BaseSettings):
     # Authentication
     SECRET_KEY: str = "your-secret-key-change-in-production"
 
-    # Email Configuration
+    # Email Configuration (AWS SES)
     EMAIL_SENDER: str = "support@panzoto.com"
-    EMAIL_PROVIDER: str = "aws_ses"  # "aws_ses" or "gmail"
-
-    # Gmail settings (legacy, kept for backward compatibility)
-    GOOGLE_APP_PASSWORD: str = ""
-    PHONE_NUMBER: str = ""
-    GMAIL_ACCOUNT: str = ""
 
     # Daily summary time
     DAILY_SUMMARY_HOUR: int = 17

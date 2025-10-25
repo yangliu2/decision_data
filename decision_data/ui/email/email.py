@@ -1,4 +1,4 @@
-"""Send an email using AWS SES or Gmail SMTP"""
+"""Send an email using AWS SES (Simple Email Service)"""
 
 import boto3
 from decision_data.backend.config.config import backend_config
@@ -32,12 +32,24 @@ def format_message(
     return body
 
 
-def send_email_aws_ses(
+def send_email(
     recipient_email: str,
     subject: str,
     message_body: str,
 ) -> str:
-    """Send email using AWS SES (Simple Email Service)."""
+    """Send email using AWS SES (Simple Email Service).
+
+    Args:
+        recipient_email: Email address to send to
+        subject: Email subject line
+        message_body: HTML email body
+
+    Returns:
+        Success message with AWS SES Message ID
+
+    Raises:
+        Exception: If SES API call fails
+    """
     try:
         client = boto3.client(
             "ses",
@@ -68,63 +80,9 @@ def send_email_aws_ses(
         )
 
         message_id = response.get("MessageId")
-        logger.info(f"[AWS SES] Email sent successfully. Message ID: {message_id}")
+        logger.info(f"[AWS SES] Email sent to {recipient_email}. Message ID: {message_id}")
         return f"Message sent successfully (AWS SES Message ID: {message_id})"
 
     except Exception as e:
-        logger.error(f"[AWS SES] Failed to send email: {e}")
+        logger.error(f"[AWS SES] Failed to send email to {recipient_email}: {e}")
         raise
-
-
-def send_email_gmail(
-    recipient_email: str,
-    subject: str,
-    message_body: str,
-) -> str:
-    """Send email using Gmail SMTP (legacy, for backward compatibility)."""
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
-    sender_email = backend_config.GMAIL_ACCOUNT
-    sender_password = backend_config.GOOGLE_APP_PASSWORD
-
-    # Create the email message object
-    msg = MIMEMultipart()
-    msg["From"] = sender_email
-    msg["To"] = recipient_email
-    msg["Subject"] = subject
-
-    # Attach the message body
-    body = MIMEText(message_body, "html")
-    msg.attach(body)
-
-    # Send the email
-    with smtplib.SMTP(smtp_server, smtp_port) as server:
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, recipient_email, msg.as_string())
-
-    logger.info(f"[Gmail SMTP] Email sent to {recipient_email}")
-    return "Message sent successfully (Gmail SMTP)"
-
-
-def send_email(
-    recipient_email: str,
-    subject: str,
-    message_body: str,
-) -> str:
-    """Send email using configured provider (AWS SES or Gmail SMTP)."""
-    provider = backend_config.EMAIL_PROVIDER.lower()
-
-    if provider == "aws_ses":
-        return send_email_aws_ses(recipient_email, subject, message_body)
-    elif provider == "gmail":
-        return send_email_gmail(recipient_email, subject, message_body)
-    else:
-        raise ValueError(
-            f"Unknown email provider: {provider}. "
-            f"Supported: 'aws_ses', 'gmail'"
-        )
