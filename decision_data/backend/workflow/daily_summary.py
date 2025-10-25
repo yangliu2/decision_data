@@ -198,20 +198,36 @@ def generate_summary(
 
     logger.info(f"[EMAIL] Daily summary sent to {final_recipient_email}")
 
-    # Step 5: Save the summary to DynamoDB
+    # Step 5: Save the summary to DynamoDB (encrypted)
     try:
         summaries_table = dynamodb.Table('panzoto-daily-summaries')
-        summary_record = parsed_response.model_dump()
+        summary_record = {}
+
+        # Create summary ID and date fields
         summary_record['summary_id'] = str(uuid.uuid4())
-        summary_record['date'] = date
+        summary_record['summary_date'] = date
         summary_record['created_at'] = datetime.utcnow().isoformat()
 
-        # Only include user_id if provided (for filtering)
+        # Include user_id if provided (for filtering and access control)
         if user_id:
             summary_record['user_id'] = user_id
 
+        # Convert the summary to JSON string and encrypt it
+        import json
+        summary_json = json.dumps(parsed_response.model_dump())
+
+        if encryption_key:
+            # Encrypt the summary using user's encryption key
+            encrypted_summary = aes_encryption.encrypt_text(summary_json, encryption_key)
+            summary_record['encrypted_summary'] = encrypted_summary
+            logger.debug(f"[ENCRYPT] Encrypted summary ({len(summary_json)} bytes)")
+        else:
+            # Fallback: store unencrypted if key unavailable (log warning)
+            logger.warning(f"[ENCRYPT] No encryption key available, storing unencrypted summary")
+            summary_record['summary'] = summary_json
+
         summaries_table.put_item(Item=summary_record)
-        logger.info(f"Saved daily summary to DynamoDB for {date}")
+        logger.info(f"[AUDIT] Saved encrypted daily summary to DynamoDB for user {user_id} on {date}")
     except Exception as e:
         logger.error(f"Failed to save summary to DynamoDB: {e}")
         raise
