@@ -174,3 +174,15 @@ class CostSummaryResponse(BaseModel):
     total_usage: dict  # service -> quantity
     credit_balance: float
     monthly_history: List[dict]  # List of past months with costs
+
+
+# Stripe Payment Models
+class CreateCheckoutSessionRequest(BaseModel):
+    """Request to create a Stripe checkout session"""
+    amount: float  # Amount in USD (e.g., 5.00, 10.00, 20.00)
+
+
+class CreateCheckoutSessionResponse(BaseModel):
+    """Response with Stripe checkout URL"""
+    checkout_url: str
+    session_id: str

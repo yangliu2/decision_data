@@ -15,8 +15,10 @@ from decision_data.backend.data.reddit import RedditScraper
 from decision_data.data_structure.models import (
     Story, User, UserCreate, UserLogin, AudioFile, AudioFileCreate,
     UserPreferences, UserPreferencesCreate, UserPreferencesUpdate,
-    TranscriptUser, ProcessingJob
+    TranscriptUser, ProcessingJob, CreateCheckoutSessionRequest,
+    CreateCheckoutSessionResponse
 )
+import stripe
 from decision_data.backend.services.user_service import UserService
 from decision_data.backend.config.config import backend_config
 from decision_data.backend.services.audio_service import AudioFileService
@@ -55,6 +57,9 @@ app = FastAPI(title="Decision Stories API")
 # Add rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Configure Stripe
+stripe.api_key = backend_config.STRIPE_SECRET_KEY
 
 # Startup and shutdown events
 @app.on_event("startup")
@@ -962,3 +967,145 @@ async def get_user_credit(
     except Exception as e:
         logger.error(f"[ERROR] Failed to get credit info: {e}")
         raise HTTPException(status_code=500, detail="Failed to get credit information")
+
+
+# Stripe Payment Endpoints
+
+@app.post("/api/create-checkout-session")
+async def create_checkout_session(
+    request_data: CreateCheckoutSessionRequest,
+    current_user: dict = Depends(get_current_user)
+) -> CreateCheckoutSessionResponse:
+    """Create a Stripe Checkout session for credit purchase
+
+    Args:
+        request_data: Amount to purchase ($5, $10, or $20)
+        current_user: Authenticated user from JWT token
+
+    Returns:
+        Checkout URL and session ID
+    """
+    user_id = current_user["user_id"]
+    amount = request_data.amount
+
+    # Validate amount (only allow predefined credit packages)
+    valid_amounts = [5.00, 10.00, 20.00]
+    if amount not in valid_amounts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid amount. Must be one of: {valid_amounts}"
+        )
+
+    try:
+        logger.info(f"[STRIPE] Creating checkout session for user {user_id}, amount ${amount}")
+
+        # Create Stripe checkout session
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'unit_amount': int(amount * 100),  # Convert to cents
+                    'product_data': {
+                        'name': f'Panzoto Credits - ${amount:.2f}',
+                        'description': f'Audio transcription credits (${amount:.2f})',
+                    },
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=backend_config.FRONTEND_URL + '/success?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=backend_config.FRONTEND_URL + '/cancelled',
+            client_reference_id=user_id,  # Track which user is paying
+            metadata={
+                'user_id': user_id,
+                'credit_amount': str(amount)
+            }
+        )
+
+        logger.info(f"[STRIPE] Created session {checkout_session.id} for user {user_id}")
+
+        return CreateCheckoutSessionResponse(
+            checkout_url=checkout_session.url,
+            session_id=checkout_session.id
+        )
+
+    except stripe.error.StripeError as e:
+        logger.error(f"[STRIPE] Error creating checkout session: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"[STRIPE] Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Payment processing error")
+
+
+@app.post("/api/stripe-webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events (payment success, failure, etc.)
+
+    This endpoint is called by Stripe when payment events occur.
+    It verifies the webhook signature and processes successful payments
+    by adding credits to the user's account.
+    """
+    payload = await request.body()
+    sig_header = request.headers.get('stripe-signature')
+
+    try:
+        # Verify webhook signature
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, backend_config.STRIPE_WEBHOOK_SECRET
+        )
+        logger.info(f"[STRIPE] Webhook event received: {event['type']}")
+
+    except ValueError as e:
+        logger.error(f"[STRIPE] Invalid payload: {e}")
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError as e:
+        logger.error(f"[STRIPE] Invalid signature: {e}")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    # Handle successful payment
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+
+        user_id = session['metadata']['user_id']
+        credit_amount = float(session['metadata']['credit_amount'])
+        payment_intent = session.get('payment_intent')
+        amount_paid = session['amount_total'] / 100  # Convert from cents to dollars
+
+        logger.info(
+            f"[STRIPE] Payment successful for user {user_id}: "
+            f"${amount_paid:.2f} (payment_intent: {payment_intent})"
+        )
+
+        # Add credits to user account
+        try:
+            cost_service = get_cost_tracking_service()
+            success = cost_service.add_user_credit(user_id, credit_amount)
+
+            if success:
+                logger.info(
+                    f"[STRIPE] Successfully added ${credit_amount} credits "
+                    f"to user {user_id}"
+                )
+            else:
+                logger.error(
+                    f"[STRIPE] Failed to add credits to user {user_id}"
+                )
+
+        except Exception as e:
+            logger.error(
+                f"[STRIPE] Error adding credits to user {user_id}: {e}",
+                exc_info=True
+            )
+
+    # Handle payment failure
+    elif event['type'] == 'checkout.session.expired':
+        session = event['data']['object']
+        user_id = session['metadata']['user_id']
+        logger.warning(f"[STRIPE] Checkout session expired for user {user_id}")
+
+    elif event['type'] == 'payment_intent.payment_failed':
+        payment_intent = event['data']['object']
+        logger.warning(f"[STRIPE] Payment failed: {payment_intent.get('id')}")
+
+    return {"status": "success"}

@@ -1757,6 +1757,24 @@ anyio = ">=3.4.0,<5"
 full = ["httpx (>=0.22.0)", "itsdangerous", "jinja2", "python-multipart (>=0.0.7)", "pyyaml"]
 
 [[package]]
+name = "stripe"
+version = "13.0.1"
+description = "Python bindings for the Stripe API"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "stripe-13.0.1-py3-none-any.whl", hash = "sha256:7804cee14580ab37bbc1e5f6562e49dea0686ab3cb34384eb9386387ed8ebd0c"},
+    {file = "stripe-13.0.1.tar.gz", hash = "sha256:5869739430ff73bd9cd81275abfb79fd4089e97e9fd98d306a015f5defd39a0d"},
+]
+
+[package.dependencies]
+requests = {version = ">=2.20", markers = "python_version >= \"3.0\""}
+typing_extensions = {version = ">=4.5.0", markers = "python_version >= \"3.7\""}
+
+[package.extras]
+async = ["httpx"]
+
+[[package]]
 name = "tqdm"
 version = "4.67.1"
 description = "Fast, Extensible Progress Meter"
@@ -1976,4 +1994,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "a3a66eb53804719e87e5b12f05991dfde30c698a5ed574a7fc5143d8aa618195"
+content-hash = "3440d3d765323ede86403048f449caaa6e11c6c915b13fa85b8d94ad4915eef4"

@@ -27,6 +27,7 @@ argon2-cffi = "^25.1.0"
 cryptography = "^46.0.1"
 pycryptodome = "^3.23.0"
 slowapi = "^0.1.9"
+stripe = "^13.0.1"
 
 [tool.poetry.group.dev.dependencies]  
 pytest = "^8.3.3"

@@ -350,6 +350,39 @@ class CostTrackingService:
             logger.error(f"[ERROR] Cost calculation failed: {e}")
             return 0.0
 
+    def add_user_credit(self, user_id: str, amount: float) -> bool:
+        """Add credits to user's balance (for payments/refunds)"""
+        try:
+            credit_info = self.get_user_credit(user_id)
+            if not credit_info:
+                logger.warning(
+                    f"[WARN] No credit account found for {user_id}, initializing"
+                )
+                self.initialize_user_credit(user_id, amount)
+                return True
+
+            new_balance = credit_info["balance"] + amount
+
+            self.user_credit_table.update_item(
+                Key={"user_id": user_id},
+                UpdateExpression="SET credit_balance = :balance, "
+                "last_updated = :timestamp",
+                ExpressionAttributeValues={
+                    ":balance": Decimal(str(new_balance)),
+                    ":timestamp": datetime.utcnow().isoformat(),
+                },
+            )
+
+            logger.info(
+                f"[OK] Added ${amount} credits to {user_id}, "
+                f"new balance: ${new_balance}"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"[ERROR] Failed to add credit: {e}")
+            return False
+
     def _deduct_credit(self, user_id: str, amount: float) -> bool:
         """Deduct cost from user's credit balance"""
         try:

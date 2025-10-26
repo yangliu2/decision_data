@@ -34,6 +34,14 @@ class BackendConfig(BaseSettings):
     # Authentication
     SECRET_KEY: str = "your-secret-key-change-in-production"
 
+    # Stripe Payment Processing
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""  # Get this from Stripe Dashboard after creating webhook
+
+    # Frontend URL for Stripe redirects
+    FRONTEND_URL: str = "panzoto://payment"  # Android deep link
+
     # Email Configuration (AWS SES)
     EMAIL_SENDER: str = "support@panzoto.com"
 
