@@ -118,6 +118,36 @@ All one-time scripts should:
 
 ## What's Been Done (Summary)
 
+### October 25, 2025 ✅
+- **Fixed:** Critical bug in daily summary scheduler (timezone-aware scheduling)
+  - Scheduler was accessing non-existent `summary_time_utc` field
+  - Implemented proper conversion: `pref_hour_utc = (pref_hour_local - timezone_offset_hours) % 24`
+  - Example: 9:00 AM CST (UTC-6) correctly converts to 15:00 UTC
+- **Implemented:** Summary retrieval & decryption API with 4 new endpoints
+  - `GET /api/user/summaries` - List all summaries (paginated)
+  - `GET /api/user/summaries/{summary_date}` - Get summary by date (YYYY-MM-DD)
+  - `DELETE /api/user/summaries/{summary_id}` - Delete summary with ownership verification
+  - `GET /api/user/summaries/export/download` - Export in JSON or CSV format
+- **Created:** `SummaryRetrievalService` class (367 lines)
+  - Full end-to-end encryption support (AES-256-GCM with user-specific keys)
+  - Automatic decryption using AWS Secrets Manager
+  - Fallback to unencrypted data if key unavailable
+  - Comprehensive error logging with [DECRYPT], [RETRIEVE], [DELETE], [EXPORT] prefixes
+- **Extended:** User preferences model with recording duration configuration
+  - Added `recording_max_duration_minutes: int = 60` field to all preference models
+  - Configurable range: 15-180 minutes (default 60)
+- **Updated:** Android PreferencesScreen UI with recording duration slider
+  - Material Design 3 Slider component with real-time feedback
+  - Current duration display with visual feedback
+  - Integrated with API calls for save/load/update
+- **Implemented:** Dynamic recording duration enforcement in MainActivity
+  - `loadRecordingPreferences()` method fetches user preference from API on startup
+  - Monitoring loop respects user's max duration instead of hardcoded value
+  - Auto-splits recording when max duration reached
+  - Includes fallback to default (60 seconds) if API fails
+- **Status:** All 6 priority tasks from CLAUDE.md completed. Ready for cost tracking feature.
+- **Documentation:** Created comprehensive `docs/SUMMARY_MANAGEMENT_IMPLEMENTATION.md`
+
 ### October 22, 2025 ✅
 - **Fixed:** Missing `/api/presigned-url` endpoint (critical blocker)
 - **Fixed:** Android app was hardcoded to broken AWS Lambda endpoint

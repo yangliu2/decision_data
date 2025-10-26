@@ -19,6 +19,7 @@ from decision_data.backend.config.config import backend_config
 from decision_data.backend.transcribe.whisper import transcribe_from_local, get_audio_duration
 from decision_data.backend.services.audio_service import AudioFileService
 from decision_data.backend.services.user_service import UserService
+from decision_data.backend.services.cost_tracking_service import get_cost_tracking_service
 from decision_data.backend.utils.secrets_manager import secrets_manager
 from decision_data.backend.utils.aes_encryption import aes_encryption
 from decision_data.data_structure.models import (
@@ -314,6 +315,18 @@ class UserTranscriptionService:
                     user_id, audio_file_id, transcript, duration, audio_file.s3_key
                 )
                 logger.info(f"[SAVE] Saved transcript {transcript_id}")
+
+                # Record Whisper usage for cost tracking
+                try:
+                    duration_minutes = duration / 60.0
+                    cost_service = get_cost_tracking_service()
+                    success = cost_service.record_whisper_usage(user_id, duration_minutes)
+                    if success:
+                        logger.info(f"[COST] Recorded Whisper usage: {duration_minutes:.2f} minutes (${duration_minutes * 0.006:.4f})")
+                    else:
+                        logger.warning(f"[COST] Failed to record Whisper usage for user {user_id}")
+                except Exception as cost_error:
+                    logger.error(f"[COST ERROR] Failed to record cost: {str(cost_error)}", exc_info=True)
 
                 self.update_job_status(job_id, 'completed')
                 logger.info(f"[SUCCESS] Job {job_id} completed with transcript {transcript_id}")

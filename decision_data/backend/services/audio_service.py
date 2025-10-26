@@ -9,6 +9,7 @@ from loguru import logger
 
 from decision_data.backend.config.config import backend_config
 from decision_data.data_structure.models import AudioFile, AudioFileCreate
+from decision_data.backend.services.cost_tracking_service import get_cost_tracking_service
 
 
 class AudioFileService:
@@ -46,6 +47,20 @@ class AudioFileService:
                     'recorded_at_iso': recorded_at.isoformat()
                 }
             )
+
+            # Record S3 upload for cost tracking
+            try:
+                if file_data.file_size:
+                    cost_service = get_cost_tracking_service()
+                    size_mb = file_data.file_size / (1024 * 1024)  # Convert bytes to MB
+                    success = cost_service.record_s3_usage(user_id, 'upload', size_mb)
+                    if success:
+                        logger.info(f"[COST] Recorded S3 upload: {size_mb:.2f} MB (${size_mb / 1024 * 0.023:.4f})")
+                    else:
+                        logger.warning(f"[COST] Failed to record S3 upload for user {user_id}")
+            except Exception as cost_error:
+                logger.error(f"[COST ERROR] Failed to record S3 cost: {str(cost_error)}", exc_info=True)
+                # Don't fail audio file creation if cost recording fails
 
             return AudioFile(
                 file_id=file_id,

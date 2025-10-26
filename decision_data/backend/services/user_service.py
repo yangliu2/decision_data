@@ -16,6 +16,7 @@ from decision_data.backend.utils.auth import (
     generate_key_salt,
 )
 from decision_data.backend.utils.secrets_manager import secrets_manager
+from decision_data.backend.services.cost_tracking_service import get_cost_tracking_service
 
 
 class UserService:
@@ -64,6 +65,18 @@ class UserService:
                     "created_at_iso": created_at.isoformat(),
                 }
             )
+
+            # Initialize user credit with $1.00 for testing
+            try:
+                cost_service = get_cost_tracking_service()
+                success = cost_service.initialize_user_credit(user_id, 1.00)
+                if success:
+                    logger.info(f"[COST] Initialized credit for new user {user_id}: $1.00")
+                else:
+                    logger.warning(f"[COST] Failed to initialize credit for user {user_id}")
+            except Exception as credit_error:
+                logger.error(f"[COST ERROR] Failed to initialize user credit: {str(credit_error)}", exc_info=True)
+                # Don't fail user creation if credit initialization fails
 
             return User(
                 user_id=user_id,

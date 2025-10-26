@@ -123,14 +123,24 @@ class DailySummaryScheduler:
                         logger.info(f"[SCHEDULER] Daily summary already scheduled for user {user_id} today")
                         continue
 
-                    # Parse the preferred time (format: "HH:MM")
-                    summary_time_utc = preferences.summary_time_utc
-                    pref_hour, pref_minute = map(int, summary_time_utc.split(':'))
+                    # Convert user's local time to UTC for scheduling
+                    # User preference: summary_time_local (e.g., "09:00") + timezone_offset_hours (e.g., -6)
+                    # Example: 09:00 CST (offset -6) = 15:00 UTC
+                    summary_time_local = preferences.summary_time_local
+                    timezone_offset_hours = preferences.timezone_offset_hours
 
-                    # Check if current time is within 5-minute window of preferred time
+                    pref_hour_local, pref_minute = map(int, summary_time_local.split(':'))
+
+                    # Convert local time to UTC by subtracting the offset
+                    # (positive offset = east of UTC, negative = west of UTC)
+                    pref_hour_utc = (pref_hour_local - timezone_offset_hours) % 24
+
+                    logger.debug(f"[SCHEDULER] User {user_id} prefers {summary_time_local} local (offset {timezone_offset_hours:+d}h) = {pref_hour_utc:02d}:{pref_minute:02d} UTC")
+
+                    # Check if current UTC time is within 5-minute window of preferred UTC time
                     # (allows for some flexibility in exact timing)
                     time_match = (
-                        current_hour == pref_hour and
+                        current_hour == pref_hour_utc and
                         current_minute >= pref_minute and
                         current_minute < pref_minute + 5
                     )
@@ -139,7 +149,7 @@ class DailySummaryScheduler:
                         continue
 
                     # It's time to create a summary job for this user!
-                    logger.info(f"[SCHEDULER] Time match! Creating daily summary job for user {user_id} (preferred time: {summary_time_utc} UTC, current time: {current_hour:02d}:{current_minute:02d} UTC)")
+                    logger.info(f"[SCHEDULER] Time match! Creating daily summary job for user {user_id} (preferred time: {pref_hour_utc:02d}:{pref_minute:02d} UTC, current time: {current_hour:02d}:{current_minute:02d} UTC)")
 
                     try:
                         # Create the daily_summary job

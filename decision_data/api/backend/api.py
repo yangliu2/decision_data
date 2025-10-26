@@ -12,7 +12,7 @@ from decision_data.backend.data.reddit import RedditScraper
 from decision_data.data_structure.models import (
     Story, User, UserCreate, UserLogin, AudioFile, AudioFileCreate,
     UserPreferences, UserPreferencesCreate, UserPreferencesUpdate,
-    TranscriptUser, ProcessingJob, DailySummaryResponse, CostSummaryResponse
+    TranscriptUser, ProcessingJob, DailySummaryResponse
 )
 from decision_data.backend.services.user_service import UserService
 from decision_data.backend.config.config import backend_config
