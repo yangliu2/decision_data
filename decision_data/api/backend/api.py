@@ -899,8 +899,33 @@ async def get_cost_summary(
         }
 
     except Exception as e:
-        logger.error(f"[ERROR] Failed to get cost summary: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get cost summary")
+        logger.warning(f"[WARN] Failed to get cost summary: {e}, returning empty response")
+        # Return empty/zero cost response when tables don't exist or error occurs
+        return {
+            "current_month": datetime.utcnow().strftime("%Y-%m"),
+            "current_month_cost": 0.0,
+            "current_month_breakdown": {
+                "whisper": 0.0,
+                "s3": 0.0,
+                "dynamodb": 0.0,
+                "ses": 0.0,
+                "secrets_manager": 0.0,
+                "openai": 0.0,
+                "other": 0.0,
+            },
+            "total_usage": {
+                "whisper": 0.0,
+                "s3": 0.0,
+                "dynamodb": 0.0,
+                "ses": 0.0,
+                "secrets_manager": 0.0,
+                "openai": 0.0,
+                "other": 0.0,
+                "total": 0.0,
+            },
+            "credit_balance": 0.0,
+            "monthly_history": [],
+        }
 
 
 @app.get("/api/user/credit")
