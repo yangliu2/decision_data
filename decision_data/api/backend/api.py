@@ -34,6 +34,10 @@ daily_summary_scheduler_task = None
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
+# Configure logging
+logger = logging.getLogger("api")
+logger.setLevel(logging.INFO)
+
 # Configure security logging
 security_logger = logging.getLogger("security")
 security_logger.setLevel(logging.INFO)
