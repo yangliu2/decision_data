@@ -12,13 +12,15 @@ from decision_data.backend.data.reddit import RedditScraper
 from decision_data.data_structure.models import (
     Story, User, UserCreate, UserLogin, AudioFile, AudioFileCreate,
     UserPreferences, UserPreferencesCreate, UserPreferencesUpdate,
-    TranscriptUser, ProcessingJob
+    TranscriptUser, ProcessingJob, DailySummaryResponse, CostSummaryResponse
 )
 from decision_data.backend.services.user_service import UserService
 from decision_data.backend.config.config import backend_config
 from decision_data.backend.services.audio_service import AudioFileService
 from decision_data.backend.services.preferences_service import UserPreferencesService
 from decision_data.backend.services.transcription_service import UserTranscriptionService
+from decision_data.backend.services.summary_retrieval_service import SummaryRetrievalService
+from decision_data.backend.services.cost_tracking_service import get_cost_tracking_service
 from decision_data.backend.services.audio_processor import start_background_processor, stop_background_processor
 from decision_data.backend.services.daily_summary_scheduler import start_daily_summary_scheduler, stop_daily_summary_scheduler
 from decision_data.backend.utils.auth import generate_jwt_token, get_current_user
@@ -533,6 +535,96 @@ async def delete_user_preferences(
         raise HTTPException(status_code=500, detail="Failed to delete preferences")
 
 
+# Daily Summary Endpoints
+
+@app.get("/api/user/summaries", response_model=List[DailySummaryResponse])
+async def get_user_summaries(
+    current_user_id: str = Depends(get_current_user),
+    limit: int = Query(50, ge=1, le=100)
+):
+    """Get all daily summaries for the user (decrypted)"""
+    try:
+        summary_service = SummaryRetrievalService()
+        summaries = summary_service.get_user_summaries(current_user_id, limit=limit)
+        return summaries
+
+    except Exception as e:
+        logging.error(f"Failed to retrieve summaries for user {current_user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve summaries")
+
+
+@app.get("/api/user/summaries/{summary_date}", response_model=DailySummaryResponse)
+async def get_summary_by_date(
+    summary_date: str,
+    current_user_id: str = Depends(get_current_user)
+):
+    """Get a specific summary for a user by date (YYYY-MM-DD format)"""
+    try:
+        summary_service = SummaryRetrievalService()
+        summary = summary_service.get_summary_by_date(current_user_id, summary_date)
+
+        if not summary:
+            raise HTTPException(status_code=404, detail="Summary not found for this date")
+
+        return summary
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Failed to retrieve summary for {current_user_id} on {summary_date}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve summary")
+
+
+@app.delete("/api/user/summaries/{summary_id}")
+async def delete_summary(
+    summary_id: str,
+    current_user_id: str = Depends(get_current_user)
+):
+    """Delete a specific summary"""
+    try:
+        summary_service = SummaryRetrievalService()
+        success = summary_service.delete_summary(current_user_id, summary_id)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Summary not found or access denied")
+
+        return {"message": "Summary deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Failed to delete summary {summary_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete summary")
+
+
+@app.get("/api/user/summaries/export/download")
+async def export_summaries(
+    current_user_id: str = Depends(get_current_user),
+    limit: int = Query(100, ge=1, le=365),
+    format: str = Query("json", enum=["json", "csv"])
+):
+    """Export user's summaries in JSON or CSV format"""
+    try:
+        summary_service = SummaryRetrievalService()
+        exported_data = summary_service.export_summaries(
+            current_user_id,
+            limit=limit,
+            format=format
+        )
+
+        if format == "json":
+            return {"data": json.loads(exported_data)}
+        else:  # CSV
+            return {
+                "data": exported_data,
+                "filename": f"summaries_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+            }
+
+    except Exception as e:
+        logging.error(f"Failed to export summaries for user {current_user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to export summaries")
+
+
 # Helper function for safe transcription processing
 async def safe_process_transcription(user_id: str, file_id: str, password: str, job_id: str):
     """Safely process transcription with timeout and error handling."""
@@ -741,3 +833,89 @@ async def request_daily_summary(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to create daily summary job")
+
+
+# Cost Tracking Endpoints
+
+@app.get("/api/user/cost-summary")
+async def get_cost_summary(
+    current_user_id: str = Depends(get_current_user)
+) -> dict:
+    """Get user's cost summary for current month and history"""
+    try:
+        cost_service = get_cost_tracking_service()
+
+        # Get current month costs
+        current_month_costs = cost_service.get_current_month_usage(current_user_id)
+
+        # Get user's credit
+        credit_info = cost_service.get_user_credit(current_user_id)
+        credit_balance = credit_info["balance"] if credit_info else 0.0
+
+        # Get cost history for last 12 months
+        history = cost_service.get_cost_history(current_user_id, months=12)
+
+        # Format monthly history for response
+        monthly_history = []
+        for h in history:
+            monthly_history.append({
+                "month": h["month"],
+                "total": h["costs"]["total"],
+                "breakdown": {
+                    "whisper": h["costs"].get("whisper", 0),
+                    "s3": h["costs"].get("s3", 0),
+                    "dynamodb": h["costs"].get("dynamodb", 0),
+                    "ses": h["costs"].get("ses", 0),
+                    "secrets_manager": h["costs"].get("secrets_manager", 0),
+                    "openai": h["costs"].get("openai", 0),
+                    "other": h["costs"].get("other", 0),
+                }
+            })
+
+        return {
+            "current_month": datetime.utcnow().strftime("%Y-%m"),
+            "current_month_cost": current_month_costs["total"],
+            "current_month_breakdown": {
+                "whisper": current_month_costs.get("whisper", 0),
+                "s3": current_month_costs.get("s3", 0),
+                "dynamodb": current_month_costs.get("dynamodb", 0),
+                "ses": current_month_costs.get("ses", 0),
+                "secrets_manager": current_month_costs.get("secrets_manager", 0),
+                "openai": current_month_costs.get("openai", 0),
+                "other": current_month_costs.get("other", 0),
+            },
+            "total_usage": current_month_costs,
+            "credit_balance": credit_balance,
+            "monthly_history": monthly_history,
+        }
+
+    except Exception as e:
+        logger.error(f"[ERROR] Failed to get cost summary: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get cost summary")
+
+
+@app.get("/api/user/credit")
+async def get_user_credit(
+    current_user_id: str = Depends(get_current_user)
+) -> dict:
+    """Get user's credit account details"""
+    try:
+        cost_service = get_cost_tracking_service()
+        credit_info = cost_service.get_user_credit(current_user_id)
+
+        if not credit_info:
+            raise HTTPException(status_code=404, detail="No credit account found")
+
+        return {
+            "balance": credit_info["balance"],
+            "initial_credit": credit_info["initial"],
+            "used_credit": credit_info["used"],
+            "refunded_credit": credit_info["refunded"],
+            "last_updated": credit_info["last_updated"],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Failed to get credit info: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get credit information")
