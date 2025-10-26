@@ -152,7 +152,7 @@ class TestDailySummaryEmailWorkflow:
         mock_send_email.assert_called_once()
         send_call = mock_send_email.call_args
         assert send_call.kwargs['recipient_email'] == "test@example.com"
-        assert send_call.kwargs['subject'] == "PANZOTO: Daily Summary"
+        assert send_call.kwargs['subject'] == "Panzoto: Daily Summary"
         assert "<h2>Business</h2>" in send_call.kwargs['message_body']
 
     @patch('decision_data.backend.workflow.daily_summary.boto3.resource')

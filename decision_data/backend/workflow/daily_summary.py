@@ -120,7 +120,7 @@ def generate_summary(
         logger.info(f"No transcripts found for {year}-{month}-{day}, sending empty summary email")
 
         # Send email even when no transcripts found
-        subject = "PANZOTO: Daily Summary"
+        subject = "Panzoto: Daily Summary"
         date = f"{year}-{month}-{day}"
         formated_message = f"""
         <html>
@@ -180,7 +180,7 @@ def generate_summary(
         return
 
     # Step 4: Send the summary to myself using email
-    subject = "PANZOTO: Daily Summary"
+    subject = "Panzoto: Daily Summary"
     date = f"{year}-{month}-{day}"
     formated_message = format_message(
         llm_resopnse=parsed_response,
