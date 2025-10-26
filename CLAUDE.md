@@ -227,11 +227,29 @@ python cleanup_failed_jobs.py
 
 | Issue | Cause | Fix |
 |-------|-------|-----|
+| **Android network errors / NetworkOnMainThreadException** | **Network call on main thread** | **ALWAYS use `scope.launch(Dispatchers.IO)` for ALL network calls in Android** |
 | Encryption MAC failure | IV length mismatch or key mismatch | Rebuild Android app, clear data, re-login |
 | Audio not uploading | Missing presigned URL endpoint | Use `/api/presigned-url` endpoint (fixed Oct 22) |
 | Jobs stuck in processing | Server crashed | Check logs for "[START] Starting processor..." |
 | Float types not supported | DynamoDB rejects floats | Use `Decimal(str(value))` in Python |
-| Android network errors | Running on main thread | Use `Dispatchers.IO` for network calls |
+
+### CRITICAL: Android Threading Rule
+```kotlin
+// WRONG - will crash with NetworkOnMainThreadException
+LaunchedEffect(Unit) {
+    scope.launch {
+        val result = authService.networkCall()  // ❌ MAIN THREAD
+    }
+}
+
+// CORRECT - always use Dispatchers.IO for network calls
+LaunchedEffect(Unit) {
+    scope.launch(Dispatchers.IO) {
+        val result = authService.networkCall()  // ✅ IO THREAD
+    }
+}
+```
+**Check this EVERY TIME you add a network call to MainActivity.kt**
 
 ---
 

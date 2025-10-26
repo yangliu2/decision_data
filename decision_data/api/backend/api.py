@@ -852,6 +852,8 @@ async def get_cost_summary(
         credit_info = cost_service.get_user_credit(current_user_id)
         credit_balance = credit_info["balance"] if credit_info else 0.0
 
+        logger.info(f"[COST] User {current_user_id}: credit_info={credit_info}, credit_balance={credit_balance}")
+
         # Get cost history for last 12 months
         history = cost_service.get_cost_history(current_user_id, months=12)
 
