@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file BEFORE any other imports
+
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Depends, Request
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
