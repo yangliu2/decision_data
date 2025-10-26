@@ -12,7 +12,7 @@ from decision_data.backend.data.reddit import RedditScraper
 from decision_data.data_structure.models import (
     Story, User, UserCreate, UserLogin, AudioFile, AudioFileCreate,
     UserPreferences, UserPreferencesCreate, UserPreferencesUpdate,
-    TranscriptUser, ProcessingJob
+    TranscriptUser, ProcessingJob, DailySummaryResponse, CostSummaryResponse
 )
 from decision_data.backend.services.user_service import UserService
 from decision_data.backend.config.config import backend_config
@@ -537,7 +537,7 @@ async def delete_user_preferences(
 
 # Daily Summary Endpoints
 
-@app.get("/api/user/summaries")
+@app.get("/api/user/summaries", response_model=List[DailySummaryResponse])
 async def get_user_summaries(
     current_user_id: str = Depends(get_current_user),
     limit: int = Query(50, ge=1, le=100)
@@ -553,7 +553,7 @@ async def get_user_summaries(
         raise HTTPException(status_code=500, detail="Failed to retrieve summaries")
 
 
-@app.get("/api/user/summaries/{summary_date}")
+@app.get("/api/user/summaries/{summary_date}", response_model=DailySummaryResponse)
 async def get_summary_by_date(
     summary_date: str,
     current_user_id: str = Depends(get_current_user)
