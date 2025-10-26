@@ -860,32 +860,41 @@ async def get_cost_summary(
         for h in history:
             monthly_history.append({
                 "month": h["month"],
-                "total": h["costs"]["total"],
+                "total": float(h["costs"]["total"]),
                 "breakdown": {
-                    "whisper": h["costs"].get("whisper", 0),
-                    "s3": h["costs"].get("s3", 0),
-                    "dynamodb": h["costs"].get("dynamodb", 0),
-                    "ses": h["costs"].get("ses", 0),
-                    "secrets_manager": h["costs"].get("secrets_manager", 0),
-                    "openai": h["costs"].get("openai", 0),
-                    "other": h["costs"].get("other", 0),
+                    "whisper": float(h["costs"].get("whisper", 0)),
+                    "s3": float(h["costs"].get("s3", 0)),
+                    "dynamodb": float(h["costs"].get("dynamodb", 0)),
+                    "ses": float(h["costs"].get("ses", 0)),
+                    "secrets_manager": float(h["costs"].get("secrets_manager", 0)),
+                    "openai": float(h["costs"].get("openai", 0)),
+                    "other": float(h["costs"].get("other", 0)),
                 }
             })
 
         return {
             "current_month": datetime.utcnow().strftime("%Y-%m"),
-            "current_month_cost": current_month_costs["total"],
+            "current_month_cost": float(current_month_costs["total"]),
             "current_month_breakdown": {
-                "whisper": current_month_costs.get("whisper", 0),
-                "s3": current_month_costs.get("s3", 0),
-                "dynamodb": current_month_costs.get("dynamodb", 0),
-                "ses": current_month_costs.get("ses", 0),
-                "secrets_manager": current_month_costs.get("secrets_manager", 0),
-                "openai": current_month_costs.get("openai", 0),
-                "other": current_month_costs.get("other", 0),
+                "whisper": float(current_month_costs.get("whisper", 0)),
+                "s3": float(current_month_costs.get("s3", 0)),
+                "dynamodb": float(current_month_costs.get("dynamodb", 0)),
+                "ses": float(current_month_costs.get("ses", 0)),
+                "secrets_manager": float(current_month_costs.get("secrets_manager", 0)),
+                "openai": float(current_month_costs.get("openai", 0)),
+                "other": float(current_month_costs.get("other", 0)),
             },
-            "total_usage": current_month_costs,
-            "credit_balance": credit_balance,
+            "total_usage": {
+                "whisper": float(current_month_costs.get("whisper", 0)),
+                "s3": float(current_month_costs.get("s3", 0)),
+                "dynamodb": float(current_month_costs.get("dynamodb", 0)),
+                "ses": float(current_month_costs.get("ses", 0)),
+                "secrets_manager": float(current_month_costs.get("secrets_manager", 0)),
+                "openai": float(current_month_costs.get("openai", 0)),
+                "other": float(current_month_costs.get("other", 0)),
+                "total": float(current_month_costs.get("total", 0)),
+            },
+            "credit_balance": float(credit_balance),
             "monthly_history": monthly_history,
         }
 
