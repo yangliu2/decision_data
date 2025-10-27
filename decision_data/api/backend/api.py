@@ -974,18 +974,17 @@ async def get_user_credit(
 @app.post("/api/create-checkout-session")
 async def create_checkout_session(
     request_data: CreateCheckoutSessionRequest,
-    current_user: dict = Depends(get_current_user)
+    user_id: str = Depends(get_current_user)
 ) -> CreateCheckoutSessionResponse:
     """Create a Stripe Checkout session for credit purchase
 
     Args:
         request_data: Amount to purchase ($5, $10, or $20)
-        current_user: Authenticated user from JWT token
+        user_id: Authenticated user ID from JWT token
 
     Returns:
         Checkout URL and session ID
     """
-    user_id = current_user["user_id"]
     amount = request_data.amount
 
     # Validate amount (only allow predefined credit packages)
