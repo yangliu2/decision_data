@@ -276,7 +276,7 @@ FRONTEND_URL: str = "panzoto://payment"  # Android deep link
 ```bash
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_eLgQWtKzo2Hatvp6bJ0jRbonKKpPMC1X
+STRIPE_WEBHOOK_SECRET=
 ```
 
 ---

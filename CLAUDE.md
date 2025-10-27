@@ -315,3 +315,6 @@ tox                                              # All checks (lint, type, test)
 
 **Last Updated:** October 22, 2025
 **System Version:** 1.0.0 (DynamoDB-only, MongoDB removed)
+
+Had to expire stripe webhood secrets because claude committed it in code.
+Next step is use https for realy payment.
