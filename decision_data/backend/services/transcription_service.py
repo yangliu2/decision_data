@@ -420,16 +420,16 @@ class UserTranscriptionService:
             return []
 
     def get_processing_jobs(self, user_id: str, limit: int = 20) -> list[ProcessingJob]:
-        """Get user's processing jobs."""
+        """Get user's processing jobs sorted by created_at (newest first)."""
         try:
-            # Fetch ALL jobs for the user to ensure proper sorting by created_at
-            # GSI sorts by job_id (UUID), not created_at, so we need to fetch more
-            # and sort in-memory to get the actual latest jobs
+            # Use GSI with created_at as sort key for efficient querying
+            # This GSI allows DynamoDB to return results already sorted by timestamp
             response = self.jobs_table.query(
-                IndexName='user-jobs-index',
+                IndexName='user-jobs-by-created-at',  # GSI with created_at sort key
                 KeyConditionExpression='user_id = :user_id',
                 ExpressionAttributeValues={':user_id': user_id},
-                ScanIndexForward=False  # Latest first (by job_id)
+                Limit=limit,  # Only fetch what we need
+                ScanIndexForward=False  # Latest first (by created_at)
             )
 
             jobs = []
@@ -465,9 +465,8 @@ class UserTranscriptionService:
                 )
                 jobs.append(job)
 
-            # Sort by created_at descending (newest first) and limit
-            jobs_sorted = sorted(jobs, key=lambda x: x.created_at, reverse=True)
-            return jobs_sorted[:limit]
+            # Results are already sorted by created_at (newest first) from DynamoDB GSI
+            return jobs
 
         except Exception as e:
             print(f"Error getting processing jobs: {e}")
