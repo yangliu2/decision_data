@@ -422,15 +422,13 @@ class UserTranscriptionService:
     def get_processing_jobs(self, user_id: str, limit: int = 20) -> list[ProcessingJob]:
         """Get user's processing jobs."""
         try:
-            # Fetch MORE than limit to ensure we can sort and get the latest ones
-            # This accounts for the fact that GSI sorts by job_id, not created_at
-            fetch_limit = min(limit * 2, 100)  # Fetch 2x but cap at 100
-
+            # Fetch ALL jobs for the user to ensure proper sorting by created_at
+            # GSI sorts by job_id (UUID), not created_at, so we need to fetch more
+            # and sort in-memory to get the actual latest jobs
             response = self.jobs_table.query(
                 IndexName='user-jobs-index',
                 KeyConditionExpression='user_id = :user_id',
                 ExpressionAttributeValues={':user_id': user_id},
-                Limit=fetch_limit,
                 ScanIndexForward=False  # Latest first (by job_id)
             )
 
