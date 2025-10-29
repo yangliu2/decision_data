@@ -375,12 +375,16 @@ class UserTranscriptionService:
                 logger.error(f"[ERROR] Encryption key not found for user {user_id}")
                 return []
 
+            # Fetch MORE than limit to ensure we can sort and get the latest ones
+            # This accounts for the fact that GSI sorts by transcript_id, not created_at
+            fetch_limit = min(limit * 2, 100)  # Fetch 2x but cap at 100
+
             response = self.transcripts_table.query(
                 IndexName='user-transcripts-index',
                 KeyConditionExpression='user_id = :user_id',
                 ExpressionAttributeValues={':user_id': user_id},
-                Limit=limit,
-                ScanIndexForward=False  # Latest first
+                Limit=fetch_limit,
+                ScanIndexForward=False
             )
 
             transcripts = []
@@ -407,7 +411,9 @@ class UserTranscriptionService:
                     # Skip this transcript if decryption fails
                     continue
 
-            return transcripts
+            # Sort by created_at descending (newest first) and limit
+            transcripts_sorted = sorted(transcripts, key=lambda x: x.created_at, reverse=True)
+            return transcripts_sorted[:limit]
 
         except Exception as e:
             logger.error(f"[ERROR] Error getting user transcripts: {e}", exc_info=True)
@@ -416,12 +422,16 @@ class UserTranscriptionService:
     def get_processing_jobs(self, user_id: str, limit: int = 20) -> list[ProcessingJob]:
         """Get user's processing jobs."""
         try:
+            # Fetch MORE than limit to ensure we can sort and get the latest ones
+            # This accounts for the fact that GSI sorts by job_id, not created_at
+            fetch_limit = min(limit * 2, 100)  # Fetch 2x but cap at 100
+
             response = self.jobs_table.query(
                 IndexName='user-jobs-index',
                 KeyConditionExpression='user_id = :user_id',
                 ExpressionAttributeValues={':user_id': user_id},
-                Limit=limit,
-                ScanIndexForward=False  # Latest first
+                Limit=fetch_limit,
+                ScanIndexForward=False  # Latest first (by job_id)
             )
 
             jobs = []
@@ -457,7 +467,9 @@ class UserTranscriptionService:
                 )
                 jobs.append(job)
 
-            return jobs
+            # Sort by created_at descending (newest first) and limit
+            jobs_sorted = sorted(jobs, key=lambda x: x.created_at, reverse=True)
+            return jobs_sorted[:limit]
 
         except Exception as e:
             print(f"Error getting processing jobs: {e}")
